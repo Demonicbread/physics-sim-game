@@ -1,9 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* You can still add some global base styles here if you want */
-body {
-  background: linear-gradient(135deg, #0f0f23, #1a1a2e);
-  color: white;
+/* Base theme using Tailwind's design tokens */
+@layer base {
+  html, body, #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 antialiased font-plus-jakarta;
+  }
+
+  ::selection {
+    @apply bg-purple-500/40 text-white;
+  }
+}
+
+/* Reusable UI primitives (opt-in) */
+@layer components {
+  .card {
+    @apply bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl shadow-lg;
+  }
+
+  .toolbar {
+    @apply card p-4 flex flex-wrap gap-3 items-center;
+  }
+
+  .control-group {
+    @apply bg-white/5 border border-white/10 rounded-lg p-3;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-md font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-500/50;
+  }
+  .btn-primary {
+    @apply btn bg-blue-600 hover:bg-blue-700 text-white;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 hover:bg-red-700 text-white;
+  }
+  .btn-warning {
+    @apply btn bg-yellow-600 hover:bg-yellow-700 text-white;
+  }
+  .btn-ghost {
+    @apply btn bg-white/5 hover:bg-white/10 text-white;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-white/10 border border-white/10;
+  }
+}
+
+/* Subtle custom scrollbar */
+/* Falls back gracefully where unsupported */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(139,92,246,.6), rgba(59,130,246,.6));
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
