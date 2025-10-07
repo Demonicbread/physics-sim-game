@@ -12,6 +12,8 @@ function App() {
   const [color, setColor] = useState('#ff0000');
   const [bgColor, setBgColor] = useState('#000000');
   const [highScore, setHighScore] = useState({ particles: 0, fps: 0 });
+  const [colliderMode, setColliderMode] = useState('none');
+  const [isPlacingCollider, setIsPlacingCollider] = useState(false);
 
   const sceneRef = useRef(null);
   const engineRef = useRef(null);
@@ -160,7 +162,7 @@ function App() {
 
   
   const addParticle = () => {
-    if (!engineRef.current || particleCount >= 1000) return;
+    if (!engineRef.current || particleCount >= 10000) return;
     const world = engineRef.current.world;
     const x = Math.random() * 800;
     const y = Math.random() * 100;
@@ -168,7 +170,7 @@ function App() {
   };
 
   const addParticleAt = (x, y) => {
-    if (!engineRef.current || particleCount >= 1000) return;
+    if (!engineRef.current || particleCount >= 10000) return;
     const world = engineRef.current.world;
     let body;
     switch (mode) {
@@ -224,12 +226,69 @@ function App() {
     }
   };
 
+  const addCollider = (x, y, type) => {
+    if (!engineRef.current) return;
+    const world = engineRef.current.world;
+    let collider;
+
+    switch (type) {
+      case 'platform':
+        collider = Matter.Bodies.rectangle(x, y, 100, 20, {
+          isStatic: true,
+          render: { fillStyle: '#8B4513' }
+        });
+        break;
+      case 'circle':
+        collider = Matter.Bodies.circle(x, y, 30, {
+          isStatic: true,
+          render: { fillStyle: '#4169E1' }
+        });
+        break;
+      case 'ramp':
+        collider = Matter.Bodies.polygon(x, y, 3, 40, {
+          isStatic: true,
+          render: { fillStyle: '#32CD32' }
+        });
+        break;
+      case 'wall':
+        collider = Matter.Bodies.rectangle(x, y, 20, 80, {
+          isStatic: true,
+          render: { fillStyle: '#DC143C' }
+        });
+        break;
+      case 'bouncer':
+        collider = Matter.Bodies.circle(x, y, 25, {
+          isStatic: true,
+          restitution: 1.5,
+          render: { fillStyle: '#FF69B4' }
+        });
+        break;
+      default:
+        return;
+    }
+
+    if (collider) {
+      Matter.World.add(world, collider);
+    }
+  };
+
   const handleSceneClick = (e) => {
     if (!sceneRef.current) return;
     const rect = sceneRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    addParticleAt(x, y);
+
+    if (colliderMode !== 'none') {
+      addCollider(x, y, colliderMode);
+      setIsPlacingCollider(false);
+    } else {
+      addParticleAt(x, y);
+    }
+  };
+
+  const selectColliderMode = (mode) => {
+    setColliderMode(mode);
+    setIsPlacingCollider(mode !== 'none');
   };
 
   const renderPage = () => {
@@ -255,15 +314,15 @@ function App() {
             <h2 className="text-4xl font-bold text-center mb-8">Simulation</h2>
             <div className="max-w-4xl mx-auto bg-white/10 p-8 rounded-lg">
               <div className="mb-4 flex flex-wrap gap-4 items-center">
-                <select value={mode} onChange={(e) => setMode(e.target.value)} className="p-2">
+                <select value={mode} onChange={(e) => setMode(e.target.value)} className="p-2 text-black">
                   <option value="balls">Bouncing Balls</option>
                   <option value="sand">Falling Sand</option>
                   <option value="water">Water Simulation</option>
                   <option value="rigid">Rigid Bodies</option>
                 </select>
-                <button onClick={addParticle} className="px-4 py-2 cursor-pointer bg-blue-500 rounded">Add Particle</button>
-                <button onClick={clearWorld} className="px-4 py-2 cursor-pointer bg-red-500 rounded">Clear</button>
-                <button onClick={stressTest} className="px-4 py-2 cursor-pointer bg-yellow-500 rounded">Stress Test</button>
+                <button onClick={addParticle} className="px-4 py-2 cursor-pointer bg-blue-500 rounded hover:bg-blue-600">Add Particle</button>
+                <button onClick={clearWorld} className="px-4 py-2 cursor-pointer bg-red-500 rounded hover:bg-red-600">Clear</button>
+                <button onClick={stressTest} className="px-4 py-2 cursor-pointer bg-yellow-500 rounded hover:bg-yellow-600">Stress Test</button>
                 <label className="flex items-center">
                   Gravity: <input type="range" min="0" max="2" step="0.1" value={gravity} onChange={(e) => setGravity(parseFloat(e.target.value))} className="ml-2" />
                 </label>
@@ -272,7 +331,52 @@ function App() {
                 </label>
                 <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
                 <div className="font-bold text-red-500">FPS: {fps}</div>
-                <div className="font-bold">Particles: {particleCount}</div>
+                <div className="font-bold">Particles: {particleCount}/10k</div>
+              </div>
+              
+              <div className="mb-4 p-4 bg-white/5 rounded-lg">
+                <h3 className="text-lg font-semibold mb-2">Physics Colliders</h3>
+                <div className="flex flex-wrap gap-2">
+                  <button 
+                    onClick={() => selectColliderMode('none')} 
+                    className={`px-3 py-2 rounded text-sm ${colliderMode === 'none' ? 'bg-green-500' : 'bg-gray-500'} hover:opacity-80`}
+                  >
+                    🖱️ Add Particles
+                  </button>
+                  <button 
+                    onClick={() => selectColliderMode('platform')} 
+                    className={`px-3 py-2 rounded text-sm ${colliderMode === 'platform' ? 'bg-green-500' : 'bg-amber-600'} hover:opacity-80`}
+                  >
+                    🟫 Platform
+                  </button>
+                  <button 
+                    onClick={() => selectColliderMode('circle')} 
+                    className={`px-3 py-2 rounded text-sm ${colliderMode === 'circle' ? 'bg-green-500' : 'bg-blue-600'} hover:opacity-80`}
+                  >
+                    🔵 Circle
+                  </button>
+                  <button 
+                    onClick={() => selectColliderMode('ramp')} 
+                    className={`px-3 py-2 rounded text-sm ${colliderMode === 'ramp' ? 'bg-green-500' : 'bg-green-600'} hover:opacity-80`}
+                  >
+                    🔺 Ramp
+                  </button>
+                  <button 
+                    onClick={() => selectColliderMode('wall')} 
+                    className={`px-3 py-2 rounded text-sm ${colliderMode === 'wall' ? 'bg-green-500' : 'bg-red-600'} hover:opacity-80`}
+                  >
+                    🧱 Wall
+                  </button>
+                  <button 
+                    onClick={() => selectColliderMode('bouncer')} 
+                    className={`px-3 py-2 rounded text-sm ${colliderMode === 'bouncer' ? 'bg-green-500' : 'bg-pink-600'} hover:opacity-80`}
+                  >
+                    ⚡ Bouncer
+                  </button>
+                </div>
+                <p className="text-sm text-gray-300 mt-2">
+                  {colliderMode === 'none' ? 'Click to add particles' : `Click to place ${colliderMode} colliders`}
+                </p>
               </div>
               <div ref={sceneRef} onClick={handleSceneClick} className="border border-gray-300 mx-auto cursor-crosshair" style={{ width: '800px', height: '600px' }} />
             </div>
