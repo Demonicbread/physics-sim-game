@@ -1,0 +1,13 @@
+/* Minimal styles to make the app readable without Tailwind */
+html,body,#root { height: 100%; margin: 0; }
+body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background: linear-gradient(180deg,#000,#111); color: #fff; }
+.bg-white\/10 { background: rgba(255,255,255,0.1); }
+.text-center { text-align: center; }
+.max-w-4xl { max-width: 64rem; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.rounded-lg { border-radius: 0.5rem; }
+.p-8 { padding: 2rem; }
+.py-32 { padding-top: 8rem; padding-bottom: 8rem; }
+.pt-16 { padding-top: 4rem; }
+.border { border: 1px solid rgba(255,255,255,0.12); }
+.cursor-crosshair { cursor: crosshair; }
