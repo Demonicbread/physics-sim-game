@@ -14,8 +14,10 @@ function App() {
   const [highScore, setHighScore] = useState({ particles: 0, fps: 0 });
 
   const sceneRef = useRef(null);
-  const engineRef = useRef(Matter.Engine.create());
+  const engineRef = useRef(null);
+  const renderRef = useRef(null);
   const particlesRef = useRef([]);
+  const runnerRef = useRef(null);
 
   useEffect(() => {
     // Load high score
@@ -25,9 +27,33 @@ function App() {
     }
   }, []);
 
+  // Initialize physics engine only when on game page
   useEffect(() => {
-    const engine = engineRef.current;
+    if (currentPage !== 'game' || !sceneRef.current) return;
+
+    // Clean up existing engine if any
+    if (engineRef.current) {
+      if (renderRef.current) {
+        Matter.Render.stop(renderRef.current);
+        if (renderRef.current.canvas) {
+          renderRef.current.canvas.remove();
+        }
+      }
+      if (runnerRef.current) {
+        Matter.Runner.stop(runnerRef.current);
+      }
+      Matter.Engine.clear(engineRef.current);
+    }
+
+    // Create new engine
+    const engine = Matter.Engine.create();
+    engineRef.current = engine;
     const world = engine.world;
+
+    // Set gravity
+    world.gravity.y = gravity;
+
+    // Create renderer
     const render = Matter.Render.create({
       element: sceneRef.current,
       engine: engine,
@@ -35,13 +61,28 @@ function App() {
         width: 800,
         height: 600,
         wireframes: false,
-        background: 'transparent'
+        background: 'transparent',
+        showAngleIndicator: false,
+        showVelocity: false
       }
     });
+    renderRef.current = render;
 
-    // Add ground
-    const ground = Matter.Bodies.rectangle(400, 610, 810, 60, { isStatic: true, render: { fillStyle: '#666' } });
-    Matter.World.add(world, ground);
+    // Add boundaries
+    const ground = Matter.Bodies.rectangle(400, 590, 800, 20, { 
+      isStatic: true, 
+      render: { fillStyle: '#666' } 
+    });
+    const leftWall = Matter.Bodies.rectangle(0, 300, 20, 600, { 
+      isStatic: true, 
+      render: { fillStyle: '#666' } 
+    });
+    const rightWall = Matter.Bodies.rectangle(800, 300, 20, 600, { 
+      isStatic: true, 
+      render: { fillStyle: '#666' } 
+    });
+    
+    Matter.World.add(world, [ground, leftWall, rightWall]);
 
     // Add mouse control
     const mouse = Matter.Mouse.create(render.canvas);
@@ -54,18 +95,17 @@ function App() {
     });
     Matter.World.add(world, mouseConstraint);
 
-    // Add a test particle
-    const testBody = Matter.Bodies.circle(400, 100, 10, {
-      render: { fillStyle: '#00ff00' },
-      restitution: 0.8
-    });
-    Matter.World.add(world, testBody);
-    particlesRef.current.push(testBody);
-    setParticleCount(1);
-
-    // Run the engine and renderer
-    Matter.Engine.run(engine);
+    // Create runner for better performance
+    const runner = Matter.Runner.create();
+    runnerRef.current = runner;
+    
+    // Start engine and renderer
+    Matter.Runner.run(runner, engine);
     Matter.Render.run(render);
+
+    // Reset particle count
+    particlesRef.current = [];
+    setParticleCount(0);
 
     // FPS Calculation Loop
     let frameCount = 0;
@@ -80,8 +120,9 @@ function App() {
         setFps(currentFps);
 
         // Update high score
-        if (particleCount > highScore.particles || (particleCount === highScore.particles && currentFps > highScore.fps)) {
-          const newHigh = { particles: particleCount, fps: currentFps };
+        const currentParticleCount = particlesRef.current.length;
+        if (currentParticleCount > highScore.particles || (currentParticleCount === highScore.particles && currentFps > highScore.fps)) {
+          const newHigh = { particles: currentParticleCount, fps: currentFps };
           setHighScore(newHigh);
           localStorage.setItem('highScore', JSON.stringify(newHigh));
         }
@@ -93,25 +134,31 @@ function App() {
     };
     updateFPS();
 
-    // Cleanup Function
+    // Cleanup function
     return () => {
-      cancelAnimationFrame(animationFrameId);
-      Matter.Render.stop(render);
-      Matter.World.clear(world);
-      Matter.Engine.clear(engine);
-      render.canvas.remove();
-      render.canvas = null;
-      render.context = null;
-      render.textures = {};
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (renderRef.current) {
+        Matter.Render.stop(renderRef.current);
+        if (renderRef.current.canvas) {
+          renderRef.current.canvas.remove();
+        }
+      }
+      if (runnerRef.current) {
+        Matter.Runner.stop(runnerRef.current);
+      }
+      if (engineRef.current) {
+        Matter.World.clear(engineRef.current.world);
+        Matter.Engine.clear(engineRef.current);
+      }
+      particlesRef.current = [];
+      setParticleCount(0);
+      setFps(0);
     };
-  }, []);
+  }, [currentPage, gravity]);
 
-  useEffect(() => {
-    if (engineRef.current) {
-      engineRef.current.world.gravity.y = gravity;
-    }
-  }, [gravity]);
-
+  
   const addParticle = () => {
     if (!engineRef.current || particleCount >= 1000) return;
     const world = engineRef.current.world;
