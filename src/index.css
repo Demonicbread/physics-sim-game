@@ -1,56 +1,174 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* Base theme using Tailwind's design tokens */
-@layer base {
-  html, body, #root {
-    @apply h-full;
-  }
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  overflow-x: hidden;
+  background: linear-gradient(to bottom, #0f172a, #1e293b, #0f172a);
+  color: #e0e7ff;
+  -webkit-font-smoothing: antialiased;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
 
-  body {
-    @apply bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100 antialiased font-plus-jakarta;
-  }
+::selection {
+  background-color: rgba(139, 92, 246, 0.25);
+  color: white;
+}
 
-  ::selection {
-    @apply bg-purple-500/40 text-white;
-  }
+/* Keyframe animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.5); }
+  50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.8), 0 0 60px rgba(139, 92, 246, 0.4); }
+}
+
+@keyframes neon-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Reusable UI primitives (opt-in) */
 @layer components {
   .card {
-    @apply bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl shadow-lg;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .card-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
   }
 
   .toolbar {
-    @apply card p-4 flex flex-wrap gap-3 items-center;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
   }
 
   .control-group {
-    @apply bg-white/5 border border-white/10 rounded-lg p-3;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   }
 
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-md font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-purple-500/50;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    outline: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   }
+
+  .btn-glow {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.8), rgba(59, 130, 246, 0.8));
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 4px 16px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .btn-glow:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.8), 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
   .btn-primary {
-    @apply btn bg-blue-600 hover:bg-blue-700 text-white;
+    background-color: #2563eb;
+    color: white;
   }
+  .btn-primary:hover {
+    background-color: #1d4ed8;
+  }
+
   .btn-danger {
-    @apply btn bg-red-600 hover:bg-red-700 text-white;
+    background-color: #dc2626;
+    color: white;
   }
+  .btn-danger:hover {
+    background-color: #b91c1c;
+  }
+
   .btn-warning {
-    @apply btn bg-yellow-600 hover:bg-yellow-700 text-white;
+    background-color: #ca8a04;
+    color: white;
   }
+  .btn-warning:hover {
+    background-color: #a16207;
+  }
+
   .btn-ghost {
-    @apply btn bg-white/5 hover:bg-white/10 text-white;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: white;
+  }
+  .btn-ghost:hover {
+    background-color: rgba(255, 255, 255, 0.1);
   }
 
   .badge {
-    @apply inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-white/10 border border-white/10;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .neon-border {
+    border: 2px solid transparent;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.3)) border-box;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  }
+
+  .floating-element {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .gradient-text-animated {
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57);
+    background-size: 400% 400%;
+    animation: gradient-shift 4s ease infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .glass-panel {
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 1rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .neon-text {
+    text-shadow: 0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(139, 92, 246, 0.4);
+    animation: neon-flicker 2s ease-in-out infinite alternate;
   }
 }
 
@@ -66,4 +184,451 @@
 }
 *::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Extravagant Physics UI Enhancements */
+
+/* Advanced Keyframe Animations */
+@keyframes particle-burst {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5) rotate(180deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes matrix-rain {
+  0% {
+    transform: translateY(-100vh);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+@keyframes hologram-flicker {
+  0%, 100% {
+    opacity: 1;
+    transform: perspective(1000px) rotateX(0deg);
+  }
+  25% {
+    opacity: 0.9;
+    transform: perspective(1000px) rotateX(2deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: perspective(1000px) rotateX(-2deg);
+  }
+  75% {
+    opacity: 0.9;
+    transform: perspective(1000px) rotateX(1deg);
+  }
+}
+
+@keyframes quantum-entanglement {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    transform: rotate(90deg) scale(1.1);
+    filter: hue-rotate(90deg);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.2);
+    filter: hue-rotate(180deg);
+  }
+  75% {
+    transform: rotate(270deg) scale(1.1);
+    filter: hue-rotate(270deg);
+  }
+}
+
+@keyframes gravitational-wave {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.05) rotate(1deg);
+  }
+  50% {
+    transform: scale(1.1) rotate(0deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(-1deg);
+  }
+}
+
+@keyframes scroll-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(50px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Physics UI Components */
+.physics-canvas {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at center, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 100%);
+  border: 3px solid rgba(120, 119, 198, 0.5);
+  border-radius: 20px;
+  box-shadow:
+    0 0 50px rgba(120, 119, 198, 0.3),
+    inset 0 0 50px rgba(0, 0, 0, 0.5),
+    0 0 100px rgba(120, 119, 198, 0.1);
+}
+
+.physics-canvas::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+    linear-gradient(45deg, transparent 40%, rgba(139, 92, 246, 0.02) 50%, transparent 60%);
+  animation: canvas-scan 10s linear infinite;
+  pointer-events: none;
+}
+
+.force-field {
+  position: absolute;
+  border: 2px solid rgba(0, 255, 0, 0.6);
+  border-radius: 50%;
+  animation: force-field-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+}
+
+.magnetic-lines {
+  position: absolute;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 0, 255, 0.8) 50%, transparent 100%);
+  animation: magnetic-wave 3s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+.collision-zone {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 165, 0, 0.8) 0%, rgba(255, 69, 0, 0.6) 50%, transparent 100%);
+  animation: collision-explosion 0.8s ease-out;
+}
+
+.trajectory-path {
+  position: absolute;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 191, 255, 0.8) 0%, rgba(0, 191, 255, 0.2) 100%);
+  box-shadow: 0 0 5px rgba(0, 191, 255, 0.6);
+  animation: trajectory-draw 2s linear;
+}
+
+.velocity-vector {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 8px solid rgba(255, 0, 0, 0.8);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  animation: vector-throb 1.5s ease-in-out infinite;
+}
+
+.velocity-vector::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: -2px;
+  width: 10px;
+  height: 4px;
+  background: rgba(255, 0, 0, 0.8);
+  transform-origin: right center;
+}
+
+.particle-system {
+  position: absolute;
+  pointer-events: none;
+}
+
+.particle-system .particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(120, 119, 198, 0.5) 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(120, 119, 198, 0.7);
+  animation: particle-orbit 4s linear infinite;
+}
+
+.particle-system .particle:nth-child(odd) {
+  animation: particle-orbit-reverse 4s linear infinite;
+}
+
+.hologram-display {
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: hologram-flicker 4s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+.hologram-display::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.1) 0%, rgba(255, 0, 255, 0.1) 100%);
+  border-radius: inherit;
+  animation: hologram-scan 3s linear infinite;
+}
+
+.quantum-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, rgba(255, 0, 255, 0.9) 0%, rgba(0, 255, 255, 0.5) 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.8);
+  animation: quantum-entanglement 6s ease-in-out infinite;
+}
+
+.gravitational-lensing {
+  position: absolute;
+  border: 2px solid rgba(255, 215, 0, 0.4);
+  border-radius: 50%;
+  animation: gravitational-wave 4s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+}
+
+.scroll-triggered {
+  opacity: 0;
+  transform: translateY(50px) scale(0.9);
+  transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.scroll-triggered.in-view {
+  animation: scroll-reveal 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* 3D Transform Utilities */
+.transform-3d {
+  transform-style: preserve-3d;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.rotate-x-12 {
+  transform: rotateX(12deg);
+}
+
+.rotate-y-12 {
+  transform: rotateY(12deg);
+}
+
+.translate-z-8 {
+  transform: translateZ(8px);
+}
+
+/* Advanced Hover Effects */
+.hover-3d {
+  transition: transform 0.3s ease;
+}
+
+.hover-3d:hover {
+  transform: perspective(1000px) rotateX(5deg) rotateY(5deg) translateZ(10px);
+}
+
+.hover-magnetic {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.hover-magnetic:hover {
+  transform: scale(1.05);
+  box-shadow: 0 20px 40px rgba(139, 92, 246, 0.4);
+}
+
+.hover-explode {
+  position: relative;
+  overflow: hidden;
+}
+
+.hover-explode:hover::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: particle-burst 0.6s ease-out;
+}
+
+/* Matrix Rain Effect */
+.matrix-rain {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.matrix-rain .column {
+  position: absolute;
+  top: -100px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: rgba(0, 255, 0, 0.8);
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
+  animation: matrix-rain 8s linear infinite;
+}
+
+.matrix-rain .column:nth-child(odd) {
+  animation-delay: -4s;
+}
+
+/* Performance Optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Responsive Physics UI */
+@media (max-width: 768px) {
+  .physics-canvas {
+    border-radius: 10px;
+    border-width: 2px;
+  }
+
+  .particle-system .particle {
+    width: 3px;
+    height: 3px;
+  }
+
+  .force-field,
+  .collision-zone {
+    border-width: 1px;
+  }
+}
+
+/* Additional Keyframes */
+@keyframes canvas-scan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes force-field-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+@keyframes magnetic-wave {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1.5);
+  }
+}
+
+@keyframes collision-explosion {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes trajectory-draw {
+  0% {
+    width: 0;
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    opacity: 0.3;
+  }
+}
+
+@keyframes vector-throb {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes particle-orbit {
+  0% {
+    transform: rotate(0deg) translateX(50px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(50px) rotate(-360deg);
+  }
+}
+
+@keyframes particle-orbit-reverse {
+  0% {
+    transform: rotate(0deg) translateX(30px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(-360deg) translateX(30px) rotate(360deg);
+  }
+}
+
+@keyframes hologram-scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
 }

@@ -1,13 +1,98 @@
-/* Minimal styles to make the app readable without Tailwind */
-html,body,#root { height: 100%; margin: 0; }
-body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background: linear-gradient(180deg,#000,#111); color: #fff; }
-.bg-white\/10 { background: rgba(255,255,255,0.1); }
+/* Gaming-inspired styles for Physics Sim Game */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: linear-gradient(180deg, #0d0d0d 0%, #1a1a2e 100%);
+  color: #e0e0e0;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><radialGradient id="a" cx="50%" cy="50%"><stop offset="0%" stop-color="rgba(255,255,255,0.15)"/><stop offset="100%" stop-color="transparent"/></radialGradient></defs><circle cx="200" cy="200" r="1.5" fill="url(%23a)"/><circle cx="800" cy="300" r="1" fill="url(%23a)"/><circle cx="500" cy="700" r="0.8" fill="url(%23a)"/><circle cx="100" cy="600" r="0.6" fill="url(%23a)"/><circle cx="900" cy="100" r="1.1" fill="url(%23a)"/></svg>');
+  animation: starfield 30s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Enhanced utility classes */
+.bg-white\/10 {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.bg-neon-purple {
+  background: linear-gradient(135deg, #8f71ff, #6b4aff);
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.6);
+}
+
+.bg-neon-cyan {
+  background: linear-gradient(135deg, #00e5ff, #00b8d4);
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.6);
+}
+
 .text-center { text-align: center; }
 .max-w-4xl { max-width: 64rem; }
 .mx-auto { margin-left: auto; margin-right: auto; }
-.rounded-lg { border-radius: 0.5rem; }
+.rounded-lg { border-radius: 0.75rem; }
 .p-8 { padding: 2rem; }
 .py-32 { padding-top: 8rem; padding-bottom: 8rem; }
 .pt-16 { padding-top: 4rem; }
-.border { border: 1px solid rgba(255,255,255,0.12); }
+.border { border: 1px solid rgba(255, 255, 255, 0.15); }
+
+.border-neon {
+  border: 2px solid transparent;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(59, 130, 246, 0.4)) border-box;
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.4);
+}
+
 .cursor-crosshair { cursor: crosshair; }
+
+/* Interactive hover states */
+.hover-lift {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.hover-lift:hover {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4), 0 0 25px rgba(139, 92, 246, 0.4);
+}
+
+.hover-glow {
+  transition: all 0.3s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 35px rgba(139, 92, 246, 0.9), 0 0 70px rgba(139, 92, 246, 0.5);
+  transform: scale(1.05);
+}
+
+/* Animation keyframes */
+@keyframes starfield {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-1000px); }
+}
+
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .py-32 { padding-top: 6rem; padding-bottom: 6rem; }
+}
