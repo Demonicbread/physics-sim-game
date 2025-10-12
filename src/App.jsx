@@ -152,7 +152,7 @@ function App() {
       if (!sensor.isSensor || !other || !other.isParticle) return;
       // Destroyer: remove particles on contact
       if (sensor.destroyer) {
-        Matter.World.remove(world, other);
+        Matter.World.remove(engineRef.current.world, other);
         const idx = particlesRef.current.indexOf(other);
         if (idx > -1) particlesRef.current.splice(idx, 1);
         setParticleCount((c) => Math.max(0, c - 1));
