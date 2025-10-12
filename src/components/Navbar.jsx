@@ -17,10 +17,16 @@ export default function Navbar({ setCurrentPage }) {
           Home
         </button>
         <button 
-          onClick={() => setCurrentPage('game')} 
+          onClick={() => setCurrentPage('modes')} 
           className="px-4 py-2 rounded-lg hover:bg-white/10 transition-colors font-semibold text-sm"
         >
-          Game
+          Play
+        </button>
+        <button 
+          onClick={() => setCurrentPage('sandbox')} 
+          className="px-4 py-2 rounded-lg hover:bg-white/10 transition-colors font-semibold text-sm"
+        >
+          Sandbox
         </button>
         <button 
           onClick={() => setCurrentPage('leaderboard')} 
