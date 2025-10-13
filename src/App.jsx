@@ -992,18 +992,22 @@ function App() {
                 x: patrol.startX,
                 y: collider.position.y,
               });
-            } else {
-              Matter.Body.setPosition(collider, {
-                x: newX,
-                y: collider.position.y,
-              });
-            }
+    } else {
+      Matter.Body.setPosition(collider, {
+        x: newX,
+        y: collider.position.y,
+      });
+      // Update magnet position if this is a magnet collider
+      if (collider.magnetIndex !== undefined) {
+        magnetsRef.current[collider.magnetIndex].position = { x: newX, y: collider.position.y };
+      }
+    }
 
-            // Update velocity to maintain momentum
-            Matter.Body.setVelocity(collider, {
-              x: patrol.speed * patrol.direction,
-              y: 0,
-            });
+    // Update velocity to maintain momentum
+    Matter.Body.setVelocity(collider, {
+      x: patrol.speed * patrol.direction,
+      y: 0,
+    });
           }
         }
       });
@@ -1349,6 +1353,7 @@ function App() {
             position: { x, y },
             strength: magnetStrengthRef.current,
           });
+          collider.magnetIndex = magnetsRef.current.length - 1;
           break;
         case "destroyer":
           collider = Matter.Bodies.rectangle(x, y, 60, 60, {
@@ -1553,6 +1558,10 @@ function App() {
           draggedColliderRef.current.constraint.pointA.y = y;
         } else {
           Matter.Body.setPosition(draggedColliderRef.current, { x, y });
+          // Update magnet position if this is a magnet collider
+          if (draggedColliderRef.current.magnetIndex !== undefined) {
+            magnetsRef.current[draggedColliderRef.current.magnetIndex].position = { x, y };
+          }
         }
       } else if (toolMode === "gun") {
         fireParticleGun(x, y);
