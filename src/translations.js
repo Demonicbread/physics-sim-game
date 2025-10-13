@@ -3,7 +3,8 @@ const translations = {
     // Home page
     title: "PhysicsBox",
     subtitle: "Relaxing Physics Sandbox",
-    description: "Unwind with a calming, creative particle sandbox. Build, play, and watch soothing physics unfold — with optional mini‑modes for extra challenges.",
+    description:
+      "Unwind with a calming, creative particle sandbox. Build, play, and watch soothing physics unfold — with optional mini‑modes for extra challenges.",
     playNow: "PLAY NOW",
     noInstall: "No installation required • Works in any modern browser",
     gameModes: "Game Modes",
@@ -14,13 +15,17 @@ const translations = {
     sandboxMode: "Sandbox Mode",
     sandboxDescription: "Relax, create, and play with soothing physics",
     challengeMode: "Challenge Mode",
-    challengeDescription: "Complete objectives across 20 levels (work in progress, may not work)",
+    challengeDescription:
+      "Complete objectives across 20 levels (work in progress, may not work)",
     survivalMode: "Survival Mode",
-    survivalDescription: "Defend your core from endless waves (work in progress, may not work)",
+    survivalDescription:
+      "Defend your core from endless waves (work in progress, may not work)",
     collectionMode: "Collection Mode",
-    collectionDescription: "Sort particles into matching zones (work in progress, may not work)",
+    collectionDescription:
+      "Sort particles into matching zones (work in progress, may not work)",
     reactionMode: "Chain Reaction",
-    reactionDescription: "Create explosive chain reactions (work in progress, may not work)",
+    reactionDescription:
+      "Create explosive chain reactions (work in progress, may not work)",
 
     // Game mode selector
     selectGameMode: "Select Game Mode",
@@ -76,8 +81,10 @@ const translations = {
     // Game mode instructions
     particleBudget: "Particle Budget",
     defendCore: "Use colliders to defend your core!",
-    collectionInstruction: "Click and drag to spawn particles, or let them spawn automatically",
-    reactionInstruction: "Explosions: {used}/{max} - Click to create explosions",
+    collectionInstruction:
+      "Click and drag to spawn particles, or let them spawn automatically",
+    reactionInstruction:
+      "Explosions: {used}/{max} - Click to create explosions",
 
     // HUD
     pause: "Pause",
@@ -120,13 +127,14 @@ const translations = {
     // Language selector
     language: "Language",
     english: "English",
-    arabic: "العربية"
+    arabic: "العربية",
   },
   ar: {
     // Home page
     title: "فيزيكس بوكس",
     subtitle: "صندوق فيزياء مريح",
-    description: "استرخِ مع صندوق فيزياء هادئ وإبداعي. ابنِ والعب وشاهد فيزياء مهدئة — مع أوضاع إضافية اختيارية للتحدي.",
+    description:
+      "استرخِ مع صندوق فيزياء هادئ وإبداعي. ابنِ والعب وشاهد فيزياء مهدئة — مع أوضاع إضافية اختيارية للتحدي.",
     playNow: "العب الآن",
     noInstall: "لا يتطلب تثبيت • يعمل في أي متصفح حديث",
     gameModes: "أوضاع اللعب",
@@ -139,11 +147,14 @@ const translations = {
     challengeMode: "وضع التحدي",
     challengeDescription: "أكمل الأهداف عبر 20 مستوى (قيد التطوير، قد لا يعمل)",
     survivalMode: "وضع البقاء",
-    survivalDescription: "دافع عن نواتك من موجات الجسيمات (قيد التطوير، قد لا يعمل)",
+    survivalDescription:
+      "دافع عن نواتك من موجات الجسيمات (قيد التطوير، قد لا يعمل)",
     collectionMode: "وضع التجميع",
-    collectionDescription: "رتب الجسيمات في المناطق المتطابقة (قيد التطوير، قد لا يعمل)",
+    collectionDescription:
+      "رتب الجسيمات في المناطق المتطابقة (قيد التطوير، قد لا يعمل)",
     reactionMode: "التفاعلات المتسلسلة",
-    reactionDescription: "أنشئ تفاعلات متفجرة متسلسلة (قيد التطوير، قد لا يعمل)",
+    reactionDescription:
+      "أنشئ تفاعلات متفجرة متسلسلة (قيد التطوير، قد لا يعمل)",
 
     // Game mode selector
     selectGameMode: "اختر وضع اللعب",
@@ -243,8 +254,8 @@ const translations = {
     // Language selector
     language: "اللغة",
     english: "English",
-    arabic: "العربية"
-  }
+    arabic: "العربية",
+  },
 };
 
 export default translations;

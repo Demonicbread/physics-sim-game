@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
-import Matter from 'matter-js';
-import { SURVIVAL_WAVES } from '../utils/gameModes';
+import { useEffect, useRef } from "react";
+import Matter from "matter-js";
+import { SURVIVAL_WAVES } from "../utils/gameModes";
 
-const ENEMY_COLOR = '#FF4444';
+const ENEMY_COLOR = "#FF4444";
 
 // This hook now encapsulates the logic for survival mode, but does not directly attach its own event listeners.
 // It returns a collision handler to be used by the main engine effect in App.jsx.
@@ -28,12 +28,17 @@ export default function useSurvivalMode({
 
   // Wave Spawner Effect
   useEffect(() => {
-    if (gameMode !== 'survival' || gameState !== 'playing' || currentPage !== 'game') {
+    if (
+      gameMode !== "survival" ||
+      gameState !== "playing" ||
+      currentPage !== "game"
+    ) {
       if (waveTimerRef.current) clearInterval(waveTimerRef.current);
       return;
     }
 
-    const waveConfig = SURVIVAL_WAVES[Math.min(wave - 1, SURVIVAL_WAVES.length - 1)];
+    const waveConfig =
+      SURVIVAL_WAVES[Math.min(wave - 1, SURVIVAL_WAVES.length - 1)];
 
     waveTimerRef.current = setInterval(() => {
       if (!engineRef.current?.world) return;
@@ -46,16 +51,28 @@ export default function useSurvivalMode({
         const side = Math.floor(Math.random() * 4);
         let x, y;
         switch (side) {
-          case 0: x = Math.random() * width; y = 20; break; // Top
-          case 1: x = width - 20; y = Math.random() * height; break; // Right
-          case 2: x = Math.random() * width; y = height - 20; break; // Bottom
-          case 3: x = 20; y = Math.random() * height; break; // Left
+          case 0:
+            x = Math.random() * width;
+            y = 20;
+            break; // Top
+          case 1:
+            x = width - 20;
+            y = Math.random() * height;
+            break; // Right
+          case 2:
+            x = Math.random() * width;
+            y = height - 20;
+            break; // Bottom
+          case 3:
+            x = 20;
+            y = Math.random() * height;
+            break; // Left
         }
 
         const particle = createParticle(x, y, {
           render: { fillStyle: ENEMY_COLOR },
           isEnemy: true,
-          restitution: 0.3
+          restitution: 0.3,
         });
 
         if (particle && coreRef.current) {
@@ -76,16 +93,26 @@ export default function useSurvivalMode({
     return () => {
       if (waveTimerRef.current) clearInterval(waveTimerRef.current);
     };
-  }, [gameMode, gameState, wave, currentPage, engineRef, renderRef, coreRef, createParticle]);
+  }, [
+    gameMode,
+    gameState,
+    wave,
+    currentPage,
+    engineRef,
+    renderRef,
+    coreRef,
+    createParticle,
+  ]);
 
   // Wave Progression Timer Effect
   useEffect(() => {
-    if (gameMode !== 'survival' || gameState !== 'playing') {
+    if (gameMode !== "survival" || gameState !== "playing") {
       if (nextWaveTimerRef.current) clearTimeout(nextWaveTimerRef.current);
       return;
     }
 
-    const waveConfig = SURVIVAL_WAVES[Math.min(wave - 1, SURVIVAL_WAVES.length - 1)];
+    const waveConfig =
+      SURVIVAL_WAVES[Math.min(wave - 1, SURVIVAL_WAVES.length - 1)];
 
     // Start countdown for next wave
     setWaveCountdown(5); // 5 second countdown
@@ -95,7 +122,7 @@ export default function useSurvivalMode({
         if (prev <= 1) {
           // Countdown finished, start next wave
           if (wave >= SURVIVAL_WAVES.length) {
-            setGameState('won');
+            setGameState("won");
           } else {
             setWave((w) => w + 1);
             setScore((s) => s + wave * 100); // Wave clear bonus
@@ -111,11 +138,19 @@ export default function useSurvivalMode({
       clearInterval(countdownInterval);
       if (nextWaveTimerRef.current) clearTimeout(nextWaveTimerRef.current);
     };
-  }, [gameMode, gameState, wave, setWave, setScore, setGameState, setWaveCountdown]);
+  }, [
+    gameMode,
+    gameState,
+    wave,
+    setWave,
+    setScore,
+    setGameState,
+    setWaveCountdown,
+  ]);
 
   const handleSurvivalCollision = (pair) => {
     // Don't process collisions if game is already lost
-    if (gameState === 'lost') return false;
+    if (gameState === "lost") return false;
 
     const bodyA = pair.bodyA;
     const bodyB = pair.bodyB;
@@ -129,7 +164,7 @@ export default function useSurvivalMode({
         setLives((l) => {
           const newLives = l - 1;
           if (newLives <= 0) {
-            setGameState('lost');
+            setGameState("lost");
           }
           return newLives;
         });
