@@ -184,16 +184,16 @@ export const CHALLENGE_LEVELS = [
 ];
 
 export const SURVIVAL_WAVES = [
-  { wave: 1, particlesPerSpawn: 5, spawnInterval: 3000, particleSpeed: 0.5, duration: 20000 },
-  { wave: 2, particlesPerSpawn: 7, spawnInterval: 2800, particleSpeed: 0.6, duration: 20000 },
-  { wave: 3, particlesPerSpawn: 10, spawnInterval: 2500, particleSpeed: 0.7, duration: 20000 },
-  { wave: 4, particlesPerSpawn: 12, spawnInterval: 2200, particleSpeed: 0.8, duration: 20000 },
-  { wave: 5, particlesPerSpawn: 15, spawnInterval: 2000, particleSpeed: 0.9, duration: 30000 },
-  { wave: 6, particlesPerSpawn: 18, spawnInterval: 1800, particleSpeed: 1.0, duration: 30000 },
-  { wave: 7, particlesPerSpawn: 20, spawnInterval: 1600, particleSpeed: 1.1, duration: 30000 },
-  { wave: 8, particlesPerSpawn: 25, spawnInterval: 1400, particleSpeed: 1.2, duration: 30000 },
-  { wave: 9, particlesPerSpawn: 30, spawnInterval: 1200, particleSpeed: 1.3, duration: 30000 },
-  { wave: 10, particlesPerSpawn: 40, spawnInterval: 1000, particleSpeed: 1.5, duration: 30000 }
+  { wave: 1, particlesPerSpawn: 5, spawnInterval: 4500, particleSpeed: 0.5, duration: 20000 },
+  { wave: 2, particlesPerSpawn: 7, spawnInterval: 4200, particleSpeed: 0.6, duration: 20000 },
+  { wave: 3, particlesPerSpawn: 10, spawnInterval: 3750, particleSpeed: 0.7, duration: 20000 },
+  { wave: 4, particlesPerSpawn: 12, spawnInterval: 3300, particleSpeed: 0.8, duration: 20000 },
+  { wave: 5, particlesPerSpawn: 15, spawnInterval: 3000, particleSpeed: 0.9, duration: 30000 },
+  { wave: 6, particlesPerSpawn: 18, spawnInterval: 2700, particleSpeed: 1.0, duration: 30000 },
+  { wave: 7, particlesPerSpawn: 20, spawnInterval: 2400, particleSpeed: 1.1, duration: 30000 },
+  { wave: 8, particlesPerSpawn: 25, spawnInterval: 2100, particleSpeed: 1.2, duration: 30000 },
+  { wave: 9, particlesPerSpawn: 30, spawnInterval: 1800, particleSpeed: 1.3, duration: 30000 },
+  { wave: 10, particlesPerSpawn: 40, spawnInterval: 1500, particleSpeed: 1.5, duration: 30000 }
 ];
 
 export const COLLECTION_COLORS = ['red', 'blue', 'green', 'yellow'];

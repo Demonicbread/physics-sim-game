@@ -19,6 +19,9 @@ export default function useSurvivalMode({
   setLives,
   wave,
   setWave,
+  waveCountdown,
+  setWaveCountdown,
+  setObjective,
 }) {
   const waveTimerRef = useRef(null);
   const nextWaveTimerRef = useRef(null);
@@ -83,22 +86,37 @@ export default function useSurvivalMode({
     }
 
     const waveConfig = SURVIVAL_WAVES[Math.min(wave - 1, SURVIVAL_WAVES.length - 1)];
-    
-    nextWaveTimerRef.current = setTimeout(() => {
-      if (wave >= SURVIVAL_WAVES.length) {
-        setGameState('won');
-      } else {
-        setWave((w) => w + 1);
-        setScore((s) => s + wave * 100); // Wave clear bonus
-      }
-    }, waveConfig.duration);
+
+    // Start countdown for next wave
+    setWaveCountdown(5); // 5 second countdown
+
+    const countdownInterval = setInterval(() => {
+      setWaveCountdown((prev) => {
+        if (prev <= 1) {
+          // Countdown finished, start next wave
+          if (wave >= SURVIVAL_WAVES.length) {
+            setGameState('won');
+          } else {
+            setWave((w) => w + 1);
+            setScore((s) => s + wave * 100); // Wave clear bonus
+            setObjective((obj) => ({ ...obj, progress: wave })); // Update progress
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     return () => {
+      clearInterval(countdownInterval);
       if (nextWaveTimerRef.current) clearTimeout(nextWaveTimerRef.current);
     };
-  }, [gameMode, gameState, wave, setWave, setScore, setGameState]);
+  }, [gameMode, gameState, wave, setWave, setScore, setGameState, setWaveCountdown]);
 
   const handleSurvivalCollision = (pair) => {
+    // Don't process collisions if game is already lost
+    if (gameState === 'lost') return false;
+
     const bodyA = pair.bodyA;
     const bodyB = pair.bodyB;
 
@@ -115,7 +133,7 @@ export default function useSurvivalMode({
           }
           return newLives;
         });
-        return true; 
+        return true;
       }
 
       // Destroyer collision
@@ -129,7 +147,7 @@ export default function useSurvivalMode({
 
     if (checkCollision(bodyA, bodyB)) return true;
     if (checkCollision(bodyB, bodyA)) return true;
-    
+
     return false;
   };
 

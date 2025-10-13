@@ -1,12 +1,12 @@
 import React from 'react';
 
-export default function GameHUD({ 
-  gameMode, 
-  score, 
-  lives, 
-  timeRemaining, 
-  wave, 
-  combo, 
+export default function GameHUD({
+  gameMode,
+  score,
+  lives,
+  timeRemaining,
+  wave,
+  combo,
   coins,
   objective,
   gameState,
@@ -14,6 +14,7 @@ export default function GameHUD({
   explosionsUsed,
   maxExplosions,
   chainReactions,
+  waveCountdown,
   onPause,
   onRestart,
   onQuit
@@ -44,6 +45,9 @@ export default function GameHUD({
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xl font-bold text-cyan-400">Wave {wave}</span>
+                {waveCountdown > 0 && (
+                  <span className="text-lg font-bold text-orange-400">Next: {waveCountdown}s</span>
+                )}
               </div>
             </>
           )}
@@ -109,25 +113,29 @@ export default function GameHUD({
         </div>
       </div>
 
+
+
       {/* Collection mode color indicators */}
       {gameMode === 'collection' && (
-        <div className="card p-5 pointer-events-auto mt-4 mx-auto max-w-md backdrop-blur-xl">
-          <div className="grid grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="w-8 h-8 rounded-full bg-red-500 mx-auto mb-1"></div>
-              <span className="text-sm font-bold">{collectedParticles.red}</span>
-            </div>
-            <div>
-              <div className="w-8 h-8 rounded-full bg-blue-500 mx-auto mb-1"></div>
-              <span className="text-sm font-bold">{collectedParticles.blue}</span>
-            </div>
-            <div>
-              <div className="w-8 h-8 rounded-full bg-green-500 mx-auto mb-1"></div>
-              <span className="text-sm font-bold">{collectedParticles.green}</span>
-            </div>
-            <div>
-              <div className="w-8 h-8 rounded-full bg-yellow-500 mx-auto mb-1"></div>
-              <span className="text-sm font-bold">{collectedParticles.yellow}</span>
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
+          <div className="card p-5 pointer-events-auto backdrop-blur-xl">
+            <div className="grid grid-cols-4 gap-4 text-center">
+              <div>
+                <div className="w-8 h-8 rounded-full bg-red-500 mx-auto mb-1"></div>
+                <span className="text-sm font-bold">{collectedParticles.red}</span>
+              </div>
+              <div>
+                <div className="w-8 h-8 rounded-full bg-blue-500 mx-auto mb-1"></div>
+                <span className="text-sm font-bold">{collectedParticles.blue}</span>
+              </div>
+              <div>
+                <div className="w-8 h-8 rounded-full bg-green-500 mx-auto mb-1"></div>
+                <span className="text-sm font-bold">{collectedParticles.green}</span>
+              </div>
+              <div>
+                <div className="w-8 h-8 rounded-full bg-yellow-500 mx-auto mb-1"></div>
+                <span className="text-sm font-bold">{collectedParticles.yellow}</span>
+              </div>
             </div>
           </div>
         </div>
