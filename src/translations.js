@@ -113,6 +113,10 @@ const translations = {
     screenShakeEffects: "Screen shake effects",
     timeScaling: "Time scaling controls",
 
+    // Navbar
+    home: "Home",
+    play: "Play",
+
     // Language selector
     language: "Language",
     english: "English",
@@ -231,6 +235,10 @@ const translations = {
     coinSystem: "نظام العملات والتقدم",
     screenShakeEffects: "تأثيرات اهتزاز الشاشة",
     timeScaling: "ضوابط تكبير الوقت",
+
+    // Navbar
+    home: "الرئيسية",
+    play: "العب",
 
     // Language selector
     language: "اللغة",

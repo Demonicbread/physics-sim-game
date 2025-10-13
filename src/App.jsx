@@ -1666,7 +1666,7 @@ function App() {
     switch (currentPage) {
       case "home":
         return (
-          <div className="flex items-center justify-center min-h-screen pt-20 px-4 relative overflow-hidden">
+          <div className="flex items-center justify-center min-h-screen pt-[100px] px-4 relative overflow-hidden">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
               <div
                 className="bg-orb top-20 left-10 w-96 h-96 bg-purple-500/20"
@@ -1817,7 +1817,7 @@ function App() {
               onRestart={handleRestart}
               onQuit={handleQuit}
             />
-            <div className="pt-20 py-12 min-h-screen text-white px-4 flex flex-col">
+            <div className="py-12 min-h-screen text-white px-4 flex flex-col">
               <h2 className="text-5xl font-extrabold text-center mb-8 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight drop-shadow-lg">
                 {gameMode === "sandbox"
                   ? t("sandboxModeTitle")
@@ -2320,7 +2320,7 @@ function App() {
 
       case "leaderboard":
         return (
-          <div className="pt-20 py-12 min-h-screen text-white px-4">
+          <div className="py-12 min-h-screen text-white px-4">
             <h2 className="text-5xl font-extrabold text-center mb-12 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight">
               {t("leaderboard")}
             </h2>
@@ -2358,7 +2358,7 @@ function App() {
 
       case "about":
         return (
-          <div className="pt-20 py-12 min-h-screen text-white px-4">
+          <div className="py-12 min-h-screen text-white px-4">
             <h2 className="text-5xl font-extrabold text-center mb-12 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight">
               {t("about")}
             </h2>
@@ -2424,6 +2424,7 @@ function App() {
           currentLanguage={currentLanguage}
           onLanguageChange={handleLanguageChange}
         />
+        <div className="h-[100px]"></div>
         <main className="flex-1 flex flex-col">{renderPage()}</main>
       </div>
     </>

@@ -40,8 +40,9 @@ export default function GameModeSelector({ onSelectMode, onBack, t }) {
   ];
 
   return (
-    <div className="pt-20 py-12 min-h-screen text-white px-4">
+    <div className="py-12 min-h-screen text-white px-4">
       <div className="max-w-6xl mx-auto">
+        <div className="h-16"></div>
         <button
           onClick={onBack}
           className="btn btn-ghost mb-8"
