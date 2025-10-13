@@ -538,6 +538,12 @@ function App() {
         });
       }
 
+      collidersRef.current.forEach((collider) => {
+        if (collider.isSpinner) {
+          Matter.Body.setAngularVelocity(collider, 0.1);
+        }
+      });
+
       explosionsRef.current = explosionsRef.current.filter((ex) => {
         ex.life -= 0.02;
         if (ex.life <= 0) return false;
