@@ -56,11 +56,14 @@ function App() {
   const [particleTrails, setParticleTrails] = useState(false);
   const [screenShake, setScreenShake] = useState(false);
   const [timeScale, setTimeScale] = useState(1);
+  // Legacy state for dragged particle (kept for compatibility but not used in new pointer-based dragging)
   const [draggedParticle, setDraggedParticle] = useState(null);
   const [dragMagnetStrength, setDragMagnetStrength] = useState(0);
-  const draggedRef = useRef(null);
-  const dragOffsetRef = useRef({ x: 0, y: 0 });
-  const [renderTick, setRenderTick] = useState(0);
+
+  // New refs for improved dragging performance (avoids React re-renders during drag)
+  const draggedRef = useRef(null); // Currently dragged particle (ref for performance)
+  const dragOffsetRef = useRef({ x: 0, y: 0 }); // Offset between pointer and particle center
+  const [renderTick, setRenderTick] = useState(0); // Trigger for manual redraws if needed
   const [showStats, setShowStats] = useState(true);
 
   // Refs
@@ -574,67 +577,75 @@ function App() {
     };
     render.canvas.addEventListener("mousemove", onMouseMove);
 
-    // Pointer events for better dragging
+    // Pointer events for improved dragging in collection mode
+    // Uses pointer events for cross-device support (mouse, touch, pen)
     const onPointerDown = (e) => {
-      if (gameMode !== "collection") return;
-      e.preventDefault();
-      e.stopPropagation();
+      if (gameMode !== "collection") return; // Only active in collection mode
+      e.preventDefault(); // Prevent default browser behavior
+      e.stopPropagation(); // Prevent event bubbling
+
       const rect = render.canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
+      const x = e.clientX - rect.left; // Convert client coords to canvas coords
       const y = e.clientY - rect.top;
 
+      // Find particle under pointer (30px radius hit detection)
       const particle = particlesRef.current.find((p) => {
         const dx = p.position.x - x;
         const dy = p.position.y - y;
-        const distSq = dx * dx + dy * dy;
-        return distSq <= 900; // 30^2
+        const distSq = dx * dx + dy * dy; // Squared distance for performance
+        return distSq <= 900; // 30^2 = 900
       });
 
       if (particle) {
-        console.log("Picked particle id:", particle.id);
-        draggedRef.current = particle;
-        dragOffsetRef.current = { x: x - particle.position.x, y: y - particle.position.y };
-        e.target.setPointerCapture(e.pointerId);
+        console.log("Picked particle id:", particle.id); // Debug log
+        draggedRef.current = particle; // Store dragged particle in ref
+        dragOffsetRef.current = { x: x - particle.position.x, y: y - particle.position.y }; // Calculate offset
+        e.target.setPointerCapture(e.pointerId); // Capture pointer for drag outside canvas
       }
     };
 
     const onPointerMove = (e) => {
-      if (gameMode !== "collection" || !draggedRef.current) return;
-      e.preventDefault();
+      if (gameMode !== "collection" || !draggedRef.current) return; // Only if dragging in collection mode
+      e.preventDefault(); // Prevent scrolling/selection
+
       const rect = render.canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
+      const x = e.clientX - rect.left; // Canvas coordinates
       const y = e.clientY - rect.top;
 
+      // Calculate target position with offset maintained
       const targetX = x - dragOffsetRef.current.x;
       const targetY = y - dragOffsetRef.current.y;
 
-      // Lerp for smoothing
+      // Smooth lerp toward target for natural feel (0.3 = 30% toward target each frame)
       const lerpFactor = 0.3;
       draggedRef.current.position.x += (targetX - draggedRef.current.position.x) * lerpFactor;
       draggedRef.current.position.y += (targetY - draggedRef.current.position.y) * lerpFactor;
 
-      setRenderTick(t => t + 1); // Trigger redraw
+      setRenderTick(t => t + 1); // Trigger React redraw (though Matter.js handles rendering)
     };
 
     const onPointerUp = (e) => {
-      if (gameMode !== "collection") return;
-      e.preventDefault();
+      if (gameMode !== "collection") return; // Only in collection mode
+      e.preventDefault(); // Prevent default behavior
+
       if (draggedRef.current) {
-        console.log("Released particle id:", draggedRef.current.id);
-        draggedRef.current = null;
-        dragOffsetRef.current = { x: 0, y: 0 };
+        console.log("Released particle id:", draggedRef.current.id); // Debug log
+        draggedRef.current = null; // Clear dragged particle
+        dragOffsetRef.current = { x: 0, y: 0 }; // Reset offset
       }
-      if (e.target.hasPointerCapture(e.pointerId)) {
+
+      // Release pointer capture if active
+      if (e.target.hasPointerCapture && e.target.hasPointerCapture(e.pointerId)) {
         e.target.releasePointerCapture(e.pointerId);
       }
     };
 
     const onPointerLeave = (e) => {
-      // Handle if pointer leaves window
+      // Handle edge case: pointer leaves canvas/window during drag
       if (draggedRef.current) {
-        console.log("Pointer left window, releasing particle");
-        draggedRef.current = null;
-        dragOffsetRef.current = { x: 0, y: 0 };
+        console.log("Pointer left canvas, releasing particle"); // Debug log
+        draggedRef.current = null; // Release drag
+        dragOffsetRef.current = { x: 0, y: 0 }; // Reset offset
       }
     };
 
@@ -644,13 +655,13 @@ function App() {
     render.canvas.addEventListener("pointerleave", onPointerLeave);
     window.addEventListener("pointerup", onPointerUp); // Global release
 
-    // Cleanup function for event listeners
+    // Cleanup function for pointer event listeners (called on component unmount)
     const cleanup = () => {
       render.canvas.removeEventListener("pointerdown", onPointerDown);
       render.canvas.removeEventListener("pointermove", onPointerMove);
       render.canvas.removeEventListener("pointerup", onPointerUp);
       render.canvas.removeEventListener("pointerleave", onPointerLeave);
-      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointerup", onPointerUp); // Global listener for release outside canvas
     };
 
     // Mouse wheel handler for rotating colliders
@@ -930,8 +941,9 @@ function App() {
         });
       }
 
-      // Collection mode: Direct position setting for dragged particle (handled in pointer events now)
-      // Old magnet force code removed
+      // Collection mode: Direct position setting for dragged particle
+      // Now handled by pointer events above for better performance and control
+      // Old magnet force code removed (was applying continuous force in physics loop)
 
       collidersRef.current.forEach((collider) => {
         if (collider.isSpinner) {
@@ -1446,9 +1458,9 @@ function App() {
 
       console.log("Mouse down:", { x, y, colliderMode, toolMode, gameMode });
 
-      // Collection mode dragging now handled by pointer events
+      // Collection mode dragging now handled by pointer events above
 
-      if (toolMode === "drag") {
+      if (toolMode === "drag") { // Dragging for colliders (not particles)
         // Find collider under mouse for dragging
         draggedColliderRef.current = collidersRef.current.find((c) => {
           const dx = c.position.x - x;
@@ -1526,9 +1538,9 @@ function App() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      // Collection mode dragging now handled by pointer events
+      // Collection mode dragging now handled by pointer events above
 
-      if (toolMode === "drag" && draggedColliderRef.current) {
+      if (toolMode === "drag" && draggedColliderRef.current) { // Continue dragging collider if active
         // Drag the collider to the mouse position
         if (
           draggedColliderRef.current.isSpinner &&
@@ -1573,8 +1585,8 @@ function App() {
       }
       draggedColliderRef.current = null;
     }
-    // Collection mode dragging now handled by pointer events
-  }, [draggedParticle]);
+    // Collection mode dragging now handled by pointer events above
+  }, [draggedParticle]); // Note: draggedParticle is legacy state, may be removable
 
   const clearWorld = useCallback(() => {
     if (!engineRef.current) return;
