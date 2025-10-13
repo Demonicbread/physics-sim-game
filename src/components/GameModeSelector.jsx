@@ -1,75 +1,80 @@
 import React from 'react';
 
-export default function GameModeSelector({ onSelectMode, onBack }) {
+export default function GameModeSelector({ onSelectMode, onBack, t }) {
   const modes = [
     {
       id: 'sandbox',
-      name: 'Sandbox Mode',
+      name: t('sandboxMode'),
       icon: '🎨',
-      description: 'Free play with unlimited resources',
+      description: t('sandboxDescription'),
       color: 'from-purple-500 to-pink-500'
     },
     {
       id: 'challenge',
-      name: 'Challenge Mode',
+      name: t('challengeMode'),
       icon: '🎯',
-      description: 'Complete objectives across 20 levels',
+      description: t('challengeDescription'),
       color: 'from-blue-500 to-cyan-500'
     },
     {
       id: 'survival',
-      name: 'Survival Mode',
+      name: t('survivalMode'),
       icon: '🌊',
-      description: 'Defend your core from endless waves',
+      description: t('survivalDescription'),
       color: 'from-red-500 to-orange-500'
     },
     {
       id: 'collection',
-      name: 'Collection Mode',
+      name: t('collectionMode'),
       icon: '🎯',
-      description: 'Sort particles into matching zones',
+      description: t('collectionDescription'),
       color: 'from-green-500 to-emerald-500'
     },
     {
       id: 'reaction',
-      name: 'Chain Reaction',
+      name: t('reactionMode'),
       icon: '⚡',
-      description: 'Create explosive chain reactions',
+      description: t('reactionDescription'),
       color: 'from-yellow-500 to-amber-500'
     }
   ];
 
   return (
-    <div className="pt-16 py-12 min-h-screen text-white px-4">
+    <div className="pt-20 py-12 min-h-screen text-white px-4">
       <div className="max-w-6xl mx-auto">
         <button
           onClick={onBack}
-          className="btn mb-6 bg-slate-700 hover:bg-slate-600"
+          className="btn btn-ghost mb-8"
         >
-          ← Back to Home
+          ← {t('backToHome')}
         </button>
 
-        <h2 className="text-5xl font-extrabold text-center mb-4 bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text tracking-tight">
-          Select Game Mode
+        <h2 className="text-6xl font-extrabold text-center mb-4 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight">
+          {t('selectGameMode')}
         </h2>
-        <p className="text-center text-slate-300 mb-12">Choose your physics adventure</p>
+        <p className="text-center text-slate-300 mb-12">{t('chooseAdventure')}</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {modes.map((mode) => (
             <button
               key={mode.id}
               onClick={() => onSelectMode(mode.id)}
-              className="card p-6 hover:scale-105 transition-all duration-300 text-left group cursor-pointer"
+              className="card p-8 hover:scale-105 hover:shadow-2xl transition-all duration-300 text-left group cursor-pointer backdrop-blur-xl relative overflow-hidden"
             >
-              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">
-                {mode.icon}
+              <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300"
+                   style={{ backgroundImage: `linear-gradient(135deg, ${mode.color.split(' ')[1]}, ${mode.color.split(' ')[3]})` }}>
               </div>
-              <h3 className={`text-2xl font-bold mb-2 bg-gradient-to-r ${mode.color} text-transparent bg-clip-text`}>
-                {mode.name}
-              </h3>
-              <p className="text-slate-400 text-sm">
-                {mode.description}
-              </p>
+              <div className="relative z-10">
+                <div className="text-7xl mb-5 group-hover:scale-110 transition-transform duration-300">
+                  {mode.icon}
+                </div>
+                <h3 className={`text-2xl font-bold mb-3 bg-gradient-to-r ${mode.color} text-transparent bg-clip-text`}>
+                  {mode.name}
+                </h3>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  {mode.description}
+                </p>
+              </div>
             </button>
           ))}
         </div>

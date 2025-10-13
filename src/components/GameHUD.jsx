@@ -28,9 +28,9 @@ export default function GameHUD({
 
   return (
     <div className="fixed top-20 left-4 right-4 z-40 pointer-events-none">
-      <div className="max-w-7xl mx-auto flex justify-between items-start">
+      <div className="max-w-7xl mx-auto flex justify-between items-start gap-4">
         {/* Left side - Game stats */}
-        <div className="card p-4 pointer-events-auto space-y-2">
+        <div className="card p-5 pointer-events-auto space-y-2 backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <span className="text-2xl font-extrabold text-yellow-400">{score}</span>
             <span className="text-xs text-slate-400 uppercase">Score</span>
@@ -86,7 +86,7 @@ export default function GameHUD({
         {/* Right side - Objective */}
         <div className="flex items-start gap-4">
           {objective && (
-            <div className="card p-4 pointer-events-auto max-w-xs">
+            <div className="card p-5 pointer-events-auto max-w-xs backdrop-blur-xl">
               <h3 className="text-sm font-bold text-purple-300 uppercase mb-2">Objective</h3>
               <p className="text-sm text-slate-300">{objective.description}</p>
               {objective.progress !== undefined && (
@@ -105,13 +105,13 @@ export default function GameHUD({
               )}
             </div>
           )}
-          <button onClick={onPause} className="btn btn-secondary p-3 pointer-events-auto">⏸️</button>
+          <button onClick={onPause} className="btn btn-secondary p-3 pointer-events-auto text-xl">⏸️</button>
         </div>
       </div>
 
       {/* Collection mode color indicators */}
       {gameMode === 'collection' && (
-        <div className="card p-4 pointer-events-auto mt-4 mx-auto max-w-md">
+        <div className="card p-5 pointer-events-auto mt-4 mx-auto max-w-md backdrop-blur-xl">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
               <div className="w-8 h-8 rounded-full bg-red-500 mx-auto mb-1"></div>
@@ -135,14 +135,19 @@ export default function GameHUD({
 
       {/* Game over / Win overlay */}
       {(gameState === 'won' || gameState === 'lost') && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 pointer-events-auto">
-          <div className="card p-8 max-w-md text-center space-y-6">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 pointer-events-auto">
+          <div className="card p-8 max-w-md text-center space-y-6 backdrop-blur-xl">
             <h2 className={`text-5xl font-extrabold ${gameState === 'won' ? 'text-green-400' : 'text-red-400'}`}>
               {gameState === 'won' ? '🎉 Victory!' : '💀 Game Over'}
             </h2>
             <div className="space-y-2">
               <p className="text-3xl font-bold text-yellow-400">Score: {score}</p>
-              <p className="text-xl text-green-400">Coins Earned: +{coins}</p>
+              <p className="text-xl text-green-400">
+                Coins Earned: +{gameState === 'won' ? 5 : 1} 💰
+              </p>
+              {gameState === 'lost' && (
+                <p className="text-sm text-slate-400">Better luck next time!</p>
+              )}
             </div>
             <div className="flex gap-3 justify-center">
               <button onClick={onRestart} className="btn btn-primary px-6 py-3">
@@ -158,8 +163,8 @@ export default function GameHUD({
 
       {/* Pause overlay */}
       {gameState === 'paused' && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 pointer-events-auto">
-          <div className="card p-8 max-w-md text-center space-y-6">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 pointer-events-auto">
+          <div className="card p-8 max-w-md text-center space-y-6 backdrop-blur-xl">
             <h2 className="text-4xl font-extrabold text-cyan-400">⏸️ Paused</h2>
             <div className="flex gap-3 justify-center">
               <button onClick={onPause} className="btn btn-primary px-6 py-3">

@@ -3,11 +3,14 @@ import Matter from 'matter-js';
 import Navbar from './components/Navbar';
 import GameModeSelector from './components/GameModeSelector';
 import GameHUD from './components/GameHUD';
-import { CHALLENGE_LEVELS, SURVIVAL_WAVES, REACTION_LEVELS, calculateScore, calculateCoins, getStarRating } from './utils/gameModes';
+import { CHALLENGE_LEVELS, REACTION_LEVELS } from './utils/gameModes';
+import useSurvivalMode from './hooks/useSurvivalMode';
+import translations from './translations';
 
 function App() {
   // UI state
   const [currentPage, setCurrentPage] = useState('home');
+  const [currentLanguage, setCurrentLanguage] = useState('en');
   const [fps, setFps] = useState(0);
   const [particleCount, setParticleCount] = useState(0);
   const [mode, setMode] = useState('balls');
@@ -33,6 +36,9 @@ function App() {
   const [maxExplosions, setMaxExplosions] = useState(5);
   const [particleBudget, setParticleBudget] = useState(Infinity);
   const [particlesSpawned, setParticlesSpawned] = useState(0);
+  const [colliderLimit, setColliderLimit] = useState(10);
+  const [collidersPlaced, setCollidersPlaced] = useState(0);
+
 
   // Advanced physics states
   const [colliderMode, setColliderMode] = useState('none');
@@ -61,9 +67,11 @@ function App() {
   const magnetsRef = useRef([]);
   const goalZonesRef = useRef([]);
   const coreRef = useRef(null);
-  const waveTimerRef = useRef(null);
   const gameTimerRef = useRef(null);
   const lastComboTimeRef = useRef(0);
+  const constraintsRef = useRef([]);
+  const roundIdRef = useRef(0);
+  const rewardGrantedRef = useRef(null);
 
   const windForceRef = useRef(0);
   const magnetStrengthRef = useRef(0);
@@ -76,7 +84,112 @@ function App() {
     if (saved) setHighScore(JSON.parse(saved));
     const savedCoins = localStorage.getItem('totalCoins');
     if (savedCoins) setCoins(parseInt(savedCoins));
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage) setCurrentLanguage(savedLanguage);
   }, []);
+
+  const createParticle = useCallback(
+    (x, y, customProps = {}) => {
+      if (!engineRef.current || particleCount >= 50000) return null;
+      if (particlesSpawned >= particleBudget && gameMode !== 'sandbox') return null;
+      
+      const world = engineRef.current.world;
+      let body;
+      const baseProps = {
+        render: { fillStyle: color },
+        frictionAir: 0.01,
+        ...customProps
+      };
+      
+      switch (mode) {
+        case 'balls':
+          body = Matter.Bodies.circle(x, y, particleSize, {
+            ...baseProps,
+            restitution: 0.8,
+            density: 0.001
+          });
+          break;
+        case 'sand':
+          body = Matter.Bodies.rectangle(x, y, particleSize * 1.5, particleSize * 1.5, {
+            ...baseProps,
+            friction: 0.9,
+            frictionStatic: 1,
+            density: 0.002,
+            restitution: 0.0
+          });
+          break;
+        case 'water':
+          body = Matter.Bodies.circle(x, y, particleSize * 0.8, {
+            ...baseProps,
+            friction: 0.0001,
+            restitution: 0.0,
+            density: 0.0008,
+            frictionAir: 0.02
+          });
+          break;
+        case 'plasma':
+          body = Matter.Bodies.circle(x, y, particleSize, {
+            ...baseProps,
+            restitution: 1,
+            density: 0.0005,
+            frictionAir: 0.005,
+            render: { fillStyle: `hsl(${Math.random() * 60 + 300}, 100%, 70%)` }
+          });
+          break;
+        case 'metal':
+          body = Matter.Bodies.rectangle(x, y, particleSize * 2, particleSize * 2, {
+            ...baseProps,
+            density: 0.01,
+            friction: 0.9,
+            restitution: 0.3,
+            render: { fillStyle: '#C0C0C0' }
+          });
+          break;
+        case 'explosive':
+          body = Matter.Bodies.circle(x, y, particleSize, {
+            ...baseProps,
+            restitution: 0.6,
+            density: 0.001,
+            render: { fillStyle: '#FF4500' },
+            explosive: true
+          });
+          break;
+        default:
+          body = Matter.Bodies.circle(x, y, particleSize, baseProps);
+      }
+      
+      if (body) {
+        body.isParticle = true;
+        if (particleTrails) body.trail = [];
+        Matter.World.add(world, body);
+        particlesRef.current.push(body);
+        setParticleCount((c) => c + 1);
+        if (gameMode !== 'sandbox' && !customProps.isEnemy) {
+          setParticlesSpawned((p) => p + 1);
+        }
+        return body;
+      }
+      return null;
+    },
+    [mode, particleSize, color, particleCount, particleTrails, particlesSpawned, particleBudget, gameMode]
+  );
+
+  // Survival Mode Hook
+  const { handleSurvivalCollision } = useSurvivalMode({
+    gameMode,
+    gameState,
+    setGameState,
+    currentPage,
+    engineRef,
+    renderRef,
+    coreRef,
+    createParticle,
+    setScore,
+    lives,
+    setLives,
+    wave,
+    setWave,
+  });
 
   // Initialize game mode
   const initializeGameMode = useCallback((mode) => {
@@ -88,7 +201,14 @@ function App() {
     setChainReactions(0);
     setExplosionsUsed(0);
     setParticlesSpawned(0);
+    setCollidersPlaced(0);
     setGameState('playing');
+    setColliderMode('none');
+    setToolMode('none');
+    roundIdRef.current += 1;
+    rewardGrantedRef.current = null;
+    // Reset portal teleport cooldowns for new round
+    portalCooldownRef.current.clear();
 
     switch (mode) {
       case 'challenge':
@@ -100,13 +220,18 @@ function App() {
         });
         setTimeRemaining(level.timeLimit);
         setParticleBudget(level.particleBudget);
+        setColliderLimit(10);
         break;
       case 'survival':
+        setMode('balls');
         setObjective({
           description: 'Defend your core from particle waves!',
-          target: 10,
+          target: 10, // Corresponds to the 10 waves
           progress: 0
         });
+        setColliderLimit(4);
+        setParticleBudget(Infinity);
+        setTimeRemaining(null);
         break;
       case 'collection':
         setObjective({
@@ -115,6 +240,7 @@ function App() {
           progress: 0
         });
         setTimeRemaining(90);
+        setColliderLimit(0); // No colliders in collection mode
         break;
       case 'reaction':
         const reactionLevel = REACTION_LEVELS[Math.min(currentLevel - 1, REACTION_LEVELS.length - 1)];
@@ -124,11 +250,15 @@ function App() {
           progress: 0
         });
         setMaxExplosions(reactionLevel.maxExplosions);
+        setTimeRemaining(null);
+        setParticleBudget(Infinity);
+        setColliderLimit(0); // No colliders in reaction mode
         break;
       default:
         setObjective(null);
         setTimeRemaining(null);
         setParticleBudget(Infinity);
+        setColliderLimit(Infinity);
     }
   }, [currentLevel]);
 
@@ -152,50 +282,6 @@ function App() {
     };
   }, [currentPage, gameState, timeRemaining, gameMode]);
 
-  // Survival wave spawner
-  useEffect(() => {
-    if (gameMode !== 'survival' || gameState !== 'playing' || currentPage !== 'game') return;
-
-    const waveConfig = SURVIVAL_WAVES[Math.min(wave - 1, SURVIVAL_WAVES.length - 1)];
-    
-    waveTimerRef.current = setInterval(() => {
-      if (!renderRef.current) return;
-      const width = renderRef.current.options.width;
-      const height = renderRef.current.options.height;
-      
-      for (let i = 0; i < waveConfig.particlesPerSpawn; i++) {
-        const side = Math.floor(Math.random() * 4);
-        let x, y;
-        switch (side) {
-          case 0: x = Math.random() * width; y = -20; break;
-          case 1: x = width + 20; y = Math.random() * height; break;
-          case 2: x = Math.random() * width; y = height + 20; break;
-          case 3: x = -20; y = Math.random() * height; break;
-        }
-        
-        const particle = createParticle(x, y, {
-          render: { fillStyle: '#FF4444' },
-          isEnemy: true
-        });
-        
-        if (particle && coreRef.current) {
-          const dx = coreRef.current.position.x - x;
-          const dy = coreRef.current.position.y - y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const force = waveConfig.particleSpeed * 0.0001;
-          Matter.Body.applyForce(particle, particle.position, {
-            x: (dx / dist) * force,
-            y: (dy / dist) * force
-          });
-        }
-      }
-    }, waveConfig.spawnInterval);
-
-    return () => {
-      if (waveTimerRef.current) clearInterval(waveTimerRef.current);
-    };
-  }, [gameMode, gameState, wave, currentPage]);
-
   // Collection mode spawner
   useEffect(() => {
     if (gameMode !== 'collection' || gameState !== 'playing' || currentPage !== 'game') return;
@@ -207,17 +293,18 @@ function App() {
       const colorNames = ['red', 'blue', 'green', 'yellow'];
       const colorIndex = Math.floor(Math.random() * 4);
       
-      const x = width / 2 + (Math.random() - 0.5) * 100;
+      const x = width / 2 + (Math.random() - 0.5) * 200;
       const y = 50;
       
       createParticle(x, y, {
         render: { fillStyle: colors[colorIndex] },
-        collectionColor: colorNames[colorIndex]
+        collectionColor: colorNames[colorIndex],
+        restitution: 0.6
       });
-    }, 2000);
+    }, 1500);
 
     return () => clearInterval(spawnInterval);
-  }, [gameMode, gameState, currentPage]);
+  }, [gameMode, gameState, currentPage, createParticle]);
 
   // Initialize physics engine
   useEffect(() => {
@@ -290,8 +377,8 @@ function App() {
     Matter.World.add(world, [ground, leftWall, rightWall, ceiling]);
 
     // Game mode specific setup
-    if (gameMode === 'challenge' || gameMode === 'collection') {
-      // Create goal zones
+    if (gameMode === 'challenge') {
+      // Create goal zone for challenge mode only
       const goalZone = Matter.Bodies.rectangle(width / 2, height - 80, 200, 60, {
         isStatic: true,
         isSensor: true,
@@ -304,12 +391,12 @@ function App() {
 
     if (gameMode === 'collection') {
       // Create colored zones in corners
-      const zoneSize = 80;
+      const zoneSize = 120;
       const zones = [
-        { x: zoneSize, y: zoneSize, color: '#FF000080', name: 'red' },
-        { x: width - zoneSize, y: zoneSize, color: '#0000FF80', name: 'blue' },
-        { x: zoneSize, y: height - zoneSize, color: '#00FF0080', name: 'green' },
-        { x: width - zoneSize, y: height - zoneSize, color: '#FFFF0080', name: 'yellow' }
+        { x: zoneSize / 2, y: zoneSize / 2, color: '#FF000080', name: 'red' },
+        { x: width - zoneSize / 2, y: zoneSize / 2, color: '#0000FF80', name: 'blue' },
+        { x: zoneSize / 2, y: height - zoneSize / 2, color: '#00FF0080', name: 'green' },
+        { x: width - zoneSize / 2, y: height - zoneSize / 2, color: '#FFFF0080', name: 'yellow' }
       ];
       
       zones.forEach(zone => {
@@ -350,7 +437,8 @@ function App() {
         const y = (row + 1) * spacing + (Math.random() - 0.5) * 20;
         createParticle(x, y, {
           render: { fillStyle: '#FF4500' },
-          explosive: true
+          explosive: true,
+          exploded: false // Track if already exploded to prevent double-counting
         });
       }
     }
@@ -371,13 +459,46 @@ function App() {
     };
     render.canvas.addEventListener('mousemove', onMouseMove);
 
+    // Mouse wheel handler for rotating colliders
+    const onMouseWheel = (e) => {
+      e.preventDefault();
+      const rect = render.canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      // Find collider under mouse
+      const collider = collidersRef.current.find((c) => {
+        const dx = c.position.x - mouseX;
+        const dy = c.position.y - mouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist < 60; // Detection radius
+      });
+      
+      if (collider && !collider.isStatic) {
+        // Rotate by 15 degrees
+        const rotation = e.deltaY > 0 ? Math.PI / 12 : -Math.PI / 12;
+        Matter.Body.rotate(collider, rotation);
+      }
+    };
+    render.canvas.addEventListener('wheel', onMouseWheel, { passive: false });
+
     // Collision handling
     const onCollisionStart = (event) => {
       for (const pair of event.pairs) {
-        const a = pair.bodyA;
-        const b = pair.bodyB;
-        handleSensorCollision(a, b);
-        handleSensorCollision(b, a);
+        if (gameMode === 'survival') {
+          if (handleSurvivalCollision(pair)) {
+            // Find and remove the particle from the ref array
+            const particleBody = pair.bodyA.isParticle ? pair.bodyA : pair.bodyB;
+            const idx = particlesRef.current.indexOf(particleBody);
+            if (idx > -1) {
+              particlesRef.current.splice(idx, 1);
+              setParticleCount(c => c - 1);
+            }
+            continue; // Skip other handlers if survival mode handled it
+          }
+        }
+        handleSensorCollision(pair.bodyA, pair.bodyB);
+        handleSensorCollision(pair.bodyB, pair.bodyA);
       }
     };
 
@@ -391,23 +512,26 @@ function App() {
         if (idx > -1) particlesRef.current.splice(idx, 1);
         setParticleCount((c) => Math.max(0, c - 1));
         setScore((s) => s + 10);
-        setObjective((obj) => obj ? { ...obj, progress: obj.progress + 1 } : null);
-        
-        if (objective && objective.progress + 1 >= objective.target) {
-          setGameState('won');
-        }
+        setObjective((obj) => {
+          if (!obj) return null;
+          const newProgress = obj.progress + 1;
+          if (newProgress >= obj.target) {
+            setGameState('won');
+          }
+          return { ...obj, progress: newProgress };
+        });
         return;
       }
 
       // Color zone collection
       if (sensor.isColorZone && gameMode === 'collection' && other.collectionColor) {
-        Matter.World.remove(engineRef.current.world, other);
-        const idx = particlesRef.current.indexOf(other);
-        if (idx > -1) particlesRef.current.splice(idx, 1);
-        setParticleCount((c) => Math.max(0, c - 1));
-        
         if (sensor.zoneName === other.collectionColor) {
-          // Correct sort
+          // Correct sort - remove particle
+          Matter.World.remove(engineRef.current.world, other);
+          const idx = particlesRef.current.indexOf(other);
+          if (idx > -1) particlesRef.current.splice(idx, 1);
+          setParticleCount((c) => Math.max(0, c - 1));
+          
           const now = performance.now();
           let currentCombo = 1;
           if (now - lastComboTimeRef.current < 2000) {
@@ -426,45 +550,32 @@ function App() {
             [other.collectionColor]: cp[other.collectionColor] + 1
           }));
           setScore((s) => s + 20 * currentCombo);
-          setObjective((obj) => obj ? { ...obj, progress: obj.progress + 1 } : null);
-          
-          if (objective && objective.progress + 1 >= objective.target) {
-            setGameState('won');
-          }
+          setObjective((obj) => {
+            if (!obj) return null;
+            const newProgress = obj.progress + 1;
+            if (newProgress >= obj.target) {
+              setGameState('won');
+            }
+            return { ...obj, progress: newProgress };
+          });
         } else {
-          // Wrong sort
+          // Wrong sort - don't remove, just penalize
           setScore((s) => Math.max(0, s - 10));
           setCombo(0);
         }
         return;
       }
-
-      // Core collision (survival mode)
-      if (sensor.isCore && other.isEnemy) {
-        Matter.World.remove(engineRef.current.world, other);
-        const idx = particlesRef.current.indexOf(other);
-        if (idx > -1) particlesRef.current.splice(idx, 1);
-        setParticleCount((c) => Math.max(0, c - 1));
-        setLives((l) => {
-          const newLives = l - 1;
-          if (newLives <= 0) {
-            setGameState('lost');
-          }
-          return newLives;
-        });
-        return;
-      }
       
-      // Destroyer
-      if (sensor.destroyer) {
+      // Destroyer (non-survival modes)
+      if (sensor.destroyer && gameMode !== 'survival') {
         Matter.World.remove(engineRef.current.world, other);
         const idx = particlesRef.current.indexOf(other);
         if (idx > -1) particlesRef.current.splice(idx, 1);
         setParticleCount((c) => Math.max(0, c - 1));
         
-        if (gameMode === 'survival' && other.isEnemy) {
+        // Award points in challenge mode for using destroyers
+        if (gameMode === 'challenge') {
           setScore((s) => s + 5);
-          setObjective((obj) => obj ? { ...obj, progress: obj.progress + 1 } : null);
         }
         return;
       }
@@ -473,22 +584,45 @@ function App() {
       if (sensor.portal && portalsRef.current.length > 1) {
         const now = performance.now();
         const last = portalCooldownRef.current.get(other.id) || 0;
-        if (now - last < 150) return;
+        if (now - last < 300) return; // increased cooldown to reduce re-entry loops
 
         const candidates = portalsRef.current.filter((p) => p !== sensor);
-        const target = candidates[0];
-        if (!target) return;
+        if (!candidates.length) return;
+        // Choose nearest portal to current sensor
+        const sx = sensor.position?.x || 0;
+        const sy = sensor.position?.y || 0;
+        let target = candidates[0];
+        let bestD2 = Infinity;
+        candidates.forEach((p) => {
+          const dx = (p.position?.x || 0) - sx;
+          const dy = (p.position?.y || 0) - sy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestD2) { bestD2 = d2; target = p; }
+        });
 
+        // Offset exit beyond portal radius along velocity or portal axis
         const vx = other.velocity.x;
         const vy = other.velocity.y;
-        const offset = { x: vx * 4, y: vy * 4 };
-        Matter.Body.setPosition(
-          other,
-          {
-            x: (target.position?.x || 0) + offset.x,
-            y: (target.position?.y || 0) + offset.y
-          }
-        );
+        let ox = vx;
+        let oy = vy;
+        const mag = Math.hypot(ox, oy);
+        if (mag < 0.01) {
+          // Use vector from source to target if velocity too small
+          ox = (target.position?.x || 0) - sx;
+          oy = (target.position?.y || 0) - sy;
+        }
+        const oMag = Math.hypot(ox, oy) || 1;
+        const exitDist = 45; // push outside sensor
+        const offset = { x: (ox / oMag) * exitDist, y: (oy / oMag) * exitDist };
+        Matter.Body.setPosition(other, {
+          x: (target.position?.x || 0) + offset.x,
+          y: (target.position?.y || 0) + offset.y
+        });
+        // Preserve speed but align direction with exit offset
+        const speed = Math.hypot(vx, vy);
+        if (speed > 0.01) {
+          Matter.Body.setVelocity(other, { x: (ox / oMag) * speed, y: (oy / oMag) * speed });
+        }
         portalCooldownRef.current.set(other.id, now);
       }
     };
@@ -499,6 +633,28 @@ function App() {
     runnerRef.current = runner;
     Matter.Runner.run(runner, engine);
     Matter.Render.run(render);
+
+    // Draw particle trails before render if present (so they appear behind colliders)
+    Matter.Events.on(render, 'beforeRender', () => {
+      const ctx = render.context;
+      if (!ctx) return;
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      particlesRef.current.forEach((p) => {
+        if (!p.trail || p.trail.length < 2) return;
+        ctx.beginPath();
+        ctx.strokeStyle = (p.render && p.render.fillStyle) || '#ffffff';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < p.trail.length - 1; i++) {
+          const a = p.trail[i];
+          const b = p.trail[i + 1];
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+        }
+        ctx.stroke();
+      });
+      ctx.restore();
+    });
 
     particlesRef.current = [];
     collidersRef.current = [];
@@ -519,14 +675,19 @@ function App() {
       const wf = windForceRef.current;
       if (wf !== 0) {
         particlesRef.current.forEach((p) => {
-          Matter.Body.applyForce(p, p.position, { x: wf * 0.001, y: 0 });
+          Matter.Body.applyForce(p, p.position, { x: wf * 0.000002, y: 0 });
         });
       }
 
       const ms = magnetStrengthRef.current;
       if (ms !== 0 && magnetsRef.current.length) {
+        const count = particlesRef.current.length;
+        let step = 1;
+        if (count > 5000) step = 10;
+        else if (count > 2000) step = 3;
         magnetsRef.current.forEach((mag) => {
-          particlesRef.current.forEach((p) => {
+          for (let i = 0; i < count; i += step) {
+            const p = particlesRef.current[i];
             const dx = mag.position.x - p.position.x;
             const dy = mag.position.y - p.position.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -534,13 +695,45 @@ function App() {
               const f = (ms * 0.0001) / (dist * dist);
               Matter.Body.applyForce(p, p.position, { x: dx * f, y: dy * f });
             }
-          });
+          }
+        });
+      }
+
+      // Survival mode: Apply continuous force toward core for enemy particles
+      if (gameMode === 'survival' && coreRef.current) {
+        particlesRef.current.forEach((p) => {
+          if (p.isEnemy) {
+            const dx = coreRef.current.position.x - p.position.x;
+            const dy = coreRef.current.position.y - p.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0) {
+              // Continuous force toward core
+              const force = 0.00015;
+              Matter.Body.applyForce(p, p.position, {
+                x: (dx / dist) * force,
+                y: (dy / dist) * force,
+              });
+            }
+          }
         });
       }
 
       collidersRef.current.forEach((collider) => {
         if (collider.isSpinner) {
-          Matter.Body.setAngularVelocity(collider, 0.1);
+          const desired = 0.1;
+          const ang = collider.angularVelocity || 0;
+          // Apply only when below target; rely on air friction to damp
+          if (Math.abs(ang) < desired * 0.9) {
+            Matter.Body.setAngularVelocity(collider, (ang >= 0 ? 1 : -1) * desired);
+          }
+        }
+      });
+
+      // Update trails
+      particlesRef.current.forEach((p) => {
+        if (p.trail) {
+          p.trail.push({ x: p.position.x, y: p.position.y });
+          if (p.trail.length > 15) p.trail.shift();
         }
       });
 
@@ -548,7 +741,9 @@ function App() {
         ex.life -= 0.02;
         if (ex.life <= 0) return false;
         
-        let chainCount = 0;
+        // Track particles to trigger chain reactions
+        const particlesToExplode = [];
+        
         particlesRef.current.forEach((p) => {
           const dx = p.position.x - ex.x;
           const dy = p.position.y - ex.y;
@@ -557,14 +752,56 @@ function App() {
             const f = (ex.power * 0.001) / (dist + 1);
             Matter.Body.applyForce(p, p.position, { x: (dx / dist) * f, y: (dy / dist) * f });
             
-            if (p.explosive && dist < ex.radius * 0.5) {
-              chainCount++;
+            // Check if this explosive particle should trigger a chain reaction
+            if (p.explosive && dist < ex.radius * 0.5 && !p.exploded) {
+              particlesToExplode.push(p);
+              p.exploded = true; // Mark to prevent re-triggering
             }
           }
         });
         
-        if (chainCount > 0 && gameMode === 'reaction') {
-          setChainReactions((c) => c + chainCount);
+        // Trigger chain reactions for explosive particles
+        if (particlesToExplode.length > 0) {
+          if (gameMode === 'reaction') {
+            setChainReactions((c) => c + particlesToExplode.length);
+          }
+          
+          // Schedule secondary explosions with slight delay for visual effect
+          particlesToExplode.forEach((p, index) => {
+            setTimeout(() => {
+              if (particlesRef.current.includes(p)) {
+                const pos = p.position;
+                // Create secondary explosion
+                explosionsRef.current.push({ 
+                  x: pos.x, 
+                  y: pos.y, 
+                  power: explosionPower * 0.7, 
+                  radius: explosionPower * 1.4, 
+                  life: 1.0 
+                });
+                
+                // Remove the exploded particle
+                Matter.World.remove(engineRef.current.world, p);
+                const idx = particlesRef.current.indexOf(p);
+                if (idx > -1) {
+                  particlesRef.current.splice(idx, 1);
+                  setParticleCount((c) => Math.max(0, c - 1));
+                }
+                
+                // Update reaction mode progress
+                if (gameMode === 'reaction') {
+                  setObjective((obj) => {
+                    if (!obj) return null;
+                    const newProgress = obj.progress + 1;
+                    if (newProgress >= obj.target) {
+                      setGameState('won');
+                    }
+                    return { ...obj, progress: newProgress };
+                  });
+                }
+              }
+            }, index * 50); // Stagger explosions for visual effect
+          });
         }
         
         return true;
@@ -613,6 +850,7 @@ function App() {
       window.removeEventListener('resize', resize);
       if (renderRef.current && renderRef.current.canvas) {
         renderRef.current.canvas.removeEventListener('mousemove', onMouseMove);
+        renderRef.current.canvas.removeEventListener('wheel', onMouseWheel);
       }
       if (renderRef.current) {
         Matter.Render.stop(renderRef.current);
@@ -633,7 +871,7 @@ function App() {
       setParticleCount(0);
       setFps(0);
     };
-  }, [currentPage, gameMode, currentLevel]);
+  }, [currentPage, gameMode, currentLevel, initializeGameMode]);
 
   useEffect(() => {
     if (engineRef.current) engineRef.current.world.gravity.y = gravity;
@@ -643,102 +881,20 @@ function App() {
     if (engineRef.current) engineRef.current.timing.timeScale = timeScale;
   }, [timeScale]);
 
-  // Win/Loss handling
+  // Win/Loss handling with one-time guard per round
   useEffect(() => {
-    if (gameState === 'won') {
-      const earnedCoins = calculateCoins(score, 2);
-      const totalCoins = coins + earnedCoins;
-      console.log(`You earned ${earnedCoins} coins. Total coins: ${totalCoins}`);
-      setCoins(totalCoins);
-      localStorage.setItem('totalCoins', totalCoins.toString());
-    }
-  }, [gameState, score, coins]);
+    if (gameState !== 'won' && gameState !== 'lost') return;
+    const currentRound = roundIdRef.current;
+    if (rewardGrantedRef.current === currentRound) return; // already awarded
 
-  const createParticle = useCallback(
-    (x, y, customProps = {}) => {
-      if (!engineRef.current || particleCount >= 50000) return null;
-      if (particlesSpawned >= particleBudget && gameMode !== 'sandbox') return null;
-      
-      const world = engineRef.current.world;
-      let body;
-      const baseProps = {
-        render: { fillStyle: color },
-        frictionAir: 0.01,
-        ...customProps
-      };
-      
-      switch (mode) {
-        case 'balls':
-          body = Matter.Bodies.circle(x, y, particleSize, {
-            ...baseProps,
-            restitution: 0.8,
-            density: 0.001
-          });
-          break;
-        case 'sand':
-          body = Matter.Bodies.rectangle(x, y, particleSize * 1.5, particleSize * 1.5, {
-            ...baseProps,
-            friction: 0.9,
-            frictionStatic: 1,
-            density: 0.002,
-            restitution: 0.1
-          });
-          break;
-        case 'water':
-          body = Matter.Bodies.circle(x, y, particleSize * 0.8, {
-            ...baseProps,
-            friction: 0.1,
-            restitution: 0.1,
-            density: 0.0008,
-            frictionAir: 0.02
-          });
-          break;
-        case 'plasma':
-          body = Matter.Bodies.circle(x, y, particleSize, {
-            ...baseProps,
-            restitution: 1.2,
-            density: 0.0005,
-            frictionAir: 0.005,
-            render: { fillStyle: `hsl(${Math.random() * 60 + 300}, 100%, 70%)` }
-          });
-          break;
-        case 'metal':
-          body = Matter.Bodies.rectangle(x, y, particleSize * 2, particleSize * 2, {
-            ...baseProps,
-            density: 0.005,
-            friction: 0.8,
-            restitution: 0.3,
-            render: { fillStyle: '#C0C0C0' }
-          });
-          break;
-        case 'explosive':
-          body = Matter.Bodies.circle(x, y, particleSize, {
-            ...baseProps,
-            restitution: 0.6,
-            density: 0.001,
-            render: { fillStyle: '#FF4500' },
-            explosive: true
-          });
-          break;
-        default:
-          body = Matter.Bodies.circle(x, y, particleSize, baseProps);
-      }
-      
-      if (body) {
-        body.isParticle = true;
-        if (particleTrails) body.trail = [];
-        Matter.World.add(world, body);
-        particlesRef.current.push(body);
-        setParticleCount((c) => c + 1);
-        if (gameMode !== 'sandbox' && !customProps.isEnemy) {
-          setParticlesSpawned((p) => p + 1);
-        }
-        return body;
-      }
-      return null;
-    },
-    [mode, particleSize, color, particleCount, particleTrails, particlesSpawned, particleBudget, gameMode]
-  );
+    const earnedCoins = gameState === 'won' ? 5 : 1;
+    setCoins((prev) => {
+      const total = prev + earnedCoins;
+      localStorage.setItem('totalCoins', total.toString());
+      return total;
+    });
+    rewardGrantedRef.current = currentRound;
+  }, [gameState]);
 
   const spawnParticles = useCallback(
     (x, y, count = 1, spread = 0) => {
@@ -765,7 +921,9 @@ function App() {
 
   const createExplosion = useCallback(
     (x, y, power = explosionPower) => {
-      if (gameMode === 'reaction' && explosionsUsed >= maxExplosions) return;
+      if (gameMode === 'reaction' && explosionsUsed >= maxExplosions) {
+        return;
+      }
       
       explosionsRef.current.push({ x, y, power, radius: power * 2, life: 1.0 });
       
@@ -781,11 +939,13 @@ function App() {
         }, 100);
       }
       
+      // Only remove non-explosive particles immediately
+      // Explosive particles will be handled by the chain reaction system
       const toRemove = particlesRef.current.filter((p) => {
         const dx = p.position.x - x;
         const dy = p.position.y - y;
         const d = Math.sqrt(dx * dx + dy * dy);
-        return d < power;
+        return d < power && !p.explosive;
       });
       
       toRemove.forEach((p) => {
@@ -812,67 +972,172 @@ function App() {
   const createCollider = useCallback(
     (x, y, type) => {
       if (!engineRef.current) return;
+      if (gameMode !== 'sandbox' && collidersPlaced >= colliderLimit) {
+        return;
+      }
       const world = engineRef.current.world;
       let collider;
-      
+
       switch (type) {
         case 'platform':
           collider = Matter.Bodies.rectangle(x, y, 120, 20, {
-            isStatic: true,
-            render: { fillStyle: '#8B4513' },
+            isStatic: false,
+            render: { 
+              fillStyle: '#8B4513',
+              sprite: {
+                texture: 'data:image/svg+xml;base64,' + btoa(`
+                  <svg width="120" height="20" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="120" height="20" fill="#8B4513" rx="4"/>
+                    <text x="60" y="14" font-family="Arial" font-size="12" fill="#FFF" text-anchor="middle">━━━</text>
+                  </svg>
+                `),
+                xScale: 1,
+                yScale: 1
+              }
+            },
             friction: 0.8,
-            restitution: 0.3
+            restitution: 0.3,
+            density: 0.001,
+            frictionAir: 0.05
           });
           break;
         case 'bouncer':
           collider = Matter.Bodies.circle(x, y, 30, {
-            isStatic: true,
+            isStatic: false,
             restitution: 1.8,
-            render: { fillStyle: '#FF1493' }
+            render: { 
+              fillStyle: '#FF1493',
+              sprite: {
+                texture: 'data:image/svg+xml;base64,' + btoa(`
+                  <svg width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="30" cy="30" r="28" fill="#FF1493"/>
+                    <text x="30" y="38" font-family="Arial" font-size="24" fill="#FFF" text-anchor="middle">⬆</text>
+                  </svg>
+                `),
+                xScale: 1,
+                yScale: 1
+              }
+            },
+            density: 0.001,
+            frictionAir: 0.05
           });
           break;
         case 'magnet':
           collider = Matter.Bodies.circle(x, y, 25, {
-            isStatic: true,
-            render: { fillStyle: '#4169E1' },
-            isSensor: true
+            isStatic: false,
+            render: { 
+              fillStyle: '#4169E1',
+              sprite: {
+                texture: 'data:image/svg+xml;base64,' + btoa(`
+                  <svg width="50" height="50" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="25" cy="25" r="23" fill="#4169E1"/>
+                    <text x="25" y="33" font-family="Arial" font-size="20" fill="#FFF" text-anchor="middle">🧲</text>
+                  </svg>
+                `),
+                xScale: 1,
+                yScale: 1
+              }
+            },
+            isSensor: true,
+            density: 0.001,
+            frictionAir: 0.05
           });
           magnetsRef.current.push({ position: { x, y }, strength: magnetStrengthRef.current });
           break;
         case 'destroyer':
           collider = Matter.Bodies.rectangle(x, y, 60, 60, {
-            isStatic: true,
-            render: { fillStyle: '#FF0000' },
+            isStatic: false,
+            render: { 
+              fillStyle: '#FF0000',
+              sprite: {
+                texture: 'data:image/svg+xml;base64,' + btoa(`
+                  <svg width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="60" height="60" fill="#FF0000" rx="8"/>
+                    <text x="30" y="40" font-family="Arial" font-size="28" fill="#FFF" text-anchor="middle">✕</text>
+                  </svg>
+                `),
+                xScale: 1,
+                yScale: 1
+              }
+            },
             isSensor: true,
-            destroyer: true
+            destroyer: true,
+            density: 0.001,
+            frictionAir: 0.05
           });
           break;
         case 'portal':
           collider = Matter.Bodies.circle(x, y, 40, {
-            isStatic: true,
-            render: { fillStyle: '#9400D3' },
+            isStatic: false,
+            render: { 
+              fillStyle: '#9400D3',
+              sprite: {
+                texture: 'data:image/svg+xml;base64,' + btoa(`
+                  <svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="40" cy="40" r="38" fill="#9400D3"/>
+                    <text x="40" y="52" font-family="Arial" font-size="32" fill="#FFF" text-anchor="middle">🌀</text>
+                  </svg>
+                `),
+                xScale: 1,
+                yScale: 1
+              }
+            },
             isSensor: true,
-            portal: true
+            portal: true,
+            density: 0.001,
+            frictionAir: 0.05
           });
           portalsRef.current.push(collider);
           break;
         case 'spinner':
           collider = Matter.Bodies.rectangle(x, y, 100, 20, {
-            render: { fillStyle: '#32CD32' },
-            frictionAir: 0.01
+            isStatic: false,
+            render: { 
+              fillStyle: '#32CD32',
+              sprite: {
+                texture: 'data:image/svg+xml;base64,' + btoa(`
+                  <svg width="100" height="20" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="20" fill="#32CD32" rx="4"/>
+                    <text x="50" y="14" font-family="Arial" font-size="12" fill="#FFF" text-anchor="middle">⟲</text>
+                  </svg>
+                `),
+                xScale: 1,
+                yScale: 1
+              }
+            },
+            frictionAir: 0.02,
+            friction: 0.02,
+            restitution: 1,
+            isSpinner: true,
+            sleepThreshold: Infinity,
+            density: 0.001
           });
-          Matter.Body.setAngularVelocity(collider, 0.1);
+          const constraint = Matter.Constraint.create({
+            pointA: { x, y },
+            bodyB: collider,
+            stiffness: 1,
+            length: 0,
+            render: {
+              visible: false,
+              strokeStyle: 'transparent'
+            }
+          });
+          Matter.World.add(world, constraint);
+          constraintsRef.current.push(constraint);
           break;
         default:
           return;
       }
-      
+
       if (collider) {
         Matter.World.add(world, collider);
         collidersRef.current.push(collider);
+        if (gameMode !== 'sandbox') {
+          setCollidersPlaced((c) => c + 1);
+        }
       }
     },
-    []
+    [gameMode, collidersPlaced, colliderLimit]
   );
 
   const handleMouseDown = useCallback(
@@ -883,6 +1148,11 @@ function App() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
+      if (gameMode === 'collection') {
+        // In collection mode, only allow dragging particles
+        return;
+      }
+      
       switch (toolMode) {
         case 'explosion':
           createExplosion(x, y);
@@ -892,10 +1162,10 @@ function App() {
           break;
         default:
           if (colliderMode !== 'none') createCollider(x, y, colliderMode);
-          else spawnParticles(x, y, 1);
+          else if (gameMode === 'sandbox') spawnParticles(x, y, 1);
       }
     },
-    [toolMode, colliderMode, createExplosion, fireParticleGun, createCollider, spawnParticles, gameState]
+    [toolMode, colliderMode, createExplosion, fireParticleGun, createCollider, spawnParticles, gameState, gameMode]
   );
 
   const handleMouseMove = useCallback(
@@ -905,10 +1175,15 @@ function App() {
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
+      if (gameMode === 'collection') {
+        // In collection mode, only allow dragging
+        return;
+      }
+      
       if (toolMode === 'gun') fireParticleGun(x, y);
-      else if (toolMode === 'spray' || (toolMode === 'none' && colliderMode === 'none')) spawnParticles(x, y, 1);
+      else if (toolMode === 'spray' || (toolMode === 'none' && colliderMode === 'none' && gameMode === 'sandbox')) spawnParticles(x, y, 1);
     },
-    [isMouseDown, toolMode, colliderMode, fireParticleGun, spawnParticles, gameState]
+    [isMouseDown, toolMode, colliderMode, fireParticleGun, spawnParticles, gameState, gameMode]
   );
 
   const handleMouseUp = useCallback(() => setIsMouseDown(false), []);
@@ -916,9 +1191,10 @@ function App() {
   const clearWorld = useCallback(() => {
     if (!engineRef.current) return;
     const world = engineRef.current.world;
-    [...particlesRef.current, ...collidersRef.current].forEach((b) => Matter.World.remove(world, b));
+    [...particlesRef.current, ...collidersRef.current, ...constraintsRef.current].forEach((b) => Matter.World.remove(world, b));
     particlesRef.current = [];
     collidersRef.current = [];
+    constraintsRef.current = [];
     portalsRef.current = [];
     explosionsRef.current = [];
     magnetsRef.current = [];
@@ -953,8 +1229,8 @@ function App() {
 
   const handleRestart = () => {
     setCurrentPage('game');
-    initializeGameMode(gameMode);
     clearWorld();
+    initializeGameMode(gameMode);
   };
 
   const handleQuit = () => {
@@ -963,73 +1239,85 @@ function App() {
     clearWorld();
   };
 
+  const handleLanguageChange = (language) => {
+    setCurrentLanguage(language);
+    localStorage.setItem('language', language);
+    // Update document direction for RTL support
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = language;
+  };
+
+  const t = (key) => {
+    return translations[currentLanguage][key] || key;
+  };
+
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
         return (
-          <div className="flex items-center justify-center min-h-screen pt-16 px-4 relative overflow-hidden">
+          <div className="flex items-center justify-center min-h-screen pt-20 px-4 relative overflow-hidden">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
-              <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-pink-500/10 rounded-full blur-3xl"></div>
+              <div className="bg-orb top-20 left-10 w-96 h-96 bg-purple-500/20" style={{ animationDelay: '0s' }}></div>
+              <div className="bg-orb bottom-20 right-10 w-80 h-80 bg-cyan-500/20" style={{ animationDelay: '2s' }}></div>
+              <div className="bg-orb top-1/2 left-1/2 w-72 h-72 bg-pink-500/20" style={{ animationDelay: '4s' }}></div>
             </div>
 
             <div className="max-w-6xl mx-auto text-center space-y-12 relative z-10">
-              <div className="space-y-6">
-                <h1 className="text-7xl md:text-9xl font-extrabold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight leading-none">
-                  PhysicsBox
+              <div className="space-y-6 animate-bounce-subtle">
+                <h1 className="text-7xl md:text-9xl font-extrabold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight leading-none drop-shadow-2xl">
+                  {t('title')}
                 </h1>
-                <h2 className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-red-500 via-yellow-500 to-orange-500 text-transparent bg-clip-text tracking-tight">
-                  Physics Game Collection
+                <h2 className="text-5xl md:text-7xl font-extrabold bg-gradient-to-r from-orange-500 via-yellow-500 to-red-500 text-transparent bg-clip-text tracking-tight drop-shadow-2xl">
+                  {t('subtitle')}
                 </h2>
-                <p className="text-xl text-slate-300 max-w-2xl mx-auto">5 unique game modes with advanced physics simulation</p>
+                <p className="text-xl text-slate-300 max-w-2xl mx-auto">{t('description')}</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
-                <div className="card p-6 hover:bg-white/10 hover:scale-105 transition-all duration-300 group">
-                  <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">🎯</div>
-                  <div className="font-bold text-lg mb-1">Challenge Mode</div>
-                  <div className="text-sm text-slate-400">20 puzzle levels</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+                <div className="card p-6 hover:scale-105 transition-all duration-300 group backdrop-blur-xl cursor-pointer">
+                  <div className="text-6xl mb-3 group-hover:scale-110 transition-transform">🎯</div>
+                  <div className="font-bold text-lg mb-1">{t('challengeMode')}</div>
+                  <div className="text-sm text-slate-400">{t('challengeDescription')}</div>
                 </div>
-                <div className="card p-6 hover:bg-white/10 hover:scale-105 transition-all duration-300 group">
-                  <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">🌊</div>
-                  <div className="font-bold text-lg mb-1">Survival Mode</div>
-                  <div className="text-sm text-slate-400">Defend against waves</div>
+                <div className="card p-6 hover:scale-105 transition-all duration-300 group backdrop-blur-xl cursor-pointer">
+                  <div className="text-6xl mb-3 group-hover:scale-110 transition-transform">🌊</div>
+                  <div className="font-bold text-lg mb-1">{t('survivalMode')}</div>
+                  <div className="text-sm text-slate-400">{t('survivalDescription')}</div>
                 </div>
-                <div className="card p-6 hover:bg-white/10 hover:scale-105 transition-all duration-300 group">
-                  <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">🎨</div>
-                  <div className="font-bold text-lg mb-1">Collection Mode</div>
-                  <div className="text-sm text-slate-400">Sort colored particles</div>
+                <div className="card p-6 hover:scale-105 transition-all duration-300 group backdrop-blur-xl cursor-pointer">
+                  <div className="text-6xl mb-3 group-hover:scale-110 transition-transform">🎨</div>
+                  <div className="font-bold text-lg mb-1">{t('collectionMode')}</div>
+                  <div className="text-sm text-slate-400">{t('collectionDescription')}</div>
                 </div>
-                <div className="card p-6 hover:bg-white/10 hover:scale-105 transition-all duration-300 group">
-                  <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">⚡</div>
-                  <div className="font-bold text-lg mb-1">Chain Reactions</div>
-                  <div className="text-sm text-slate-400">Explosive combos</div>
+                <div className="card p-6 hover:scale-105 transition-all duration-300 group backdrop-blur-xl cursor-pointer">
+                  <div className="text-6xl mb-3 group-hover:scale-110 transition-transform">⚡</div>
+                  <div className="font-bold text-lg mb-1">{t('reactionMode')}</div>
+                  <div className="text-sm text-slate-400">{t('reactionDescription')}</div>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 mt-8">
                 <button
                   onClick={() => setCurrentPage('modes')}
-                  className="btn bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 hover:from-red-600 hover:via-purple-600 hover:to-blue-600 text-white px-16 py-5 text-2xl font-extrabold rounded-2xl shadow-2xl hover:shadow-purple-500/50 hover:scale-110 transform transition-all duration-300"
+                  className="btn btn-primary px-16 py-5 text-2xl font-extrabold rounded-2xl shadow-2xl hover:scale-110 transform transition-all duration-300"
                 >
-                  PLAY NOW
+                  {t('playNow')}
                 </button>
-                <p className="text-sm text-slate-400">No installation required • Works in any modern browser</p>
+                <p className="text-sm text-slate-400">{t('noInstall')}</p>
               </div>
 
-              <div className="flex justify-center gap-8 text-center pt-8 border-t border-white/10">
-                <div>
-                  <div className="text-3xl font-bold text-purple-400">5</div>
-                  <div className="text-xs text-slate-400 uppercase tracking-wide">Game Modes</div>
+              <div className="flex justify-center gap-12 text-center pt-8 border-t border-white/10">
+                <div className="group cursor-default">
+                  <div className="text-4xl font-bold text-purple-400 group-hover:scale-110 transition-transform">5</div>
+                  <div className="text-xs text-slate-400 uppercase tracking-wide">{t('gameModes')}</div>
                 </div>
-                <div>
-                  <div className="text-3xl font-bold text-cyan-400">💰 {coins}</div>
-                  <div className="text-xs text-slate-400 uppercase tracking-wide">Total Coins</div>
+                <div className="group cursor-default">
+                  <div className="text-4xl font-bold text-cyan-400 group-hover:scale-110 transition-transform">💰 {coins}</div>
+                  <div className="text-xs text-slate-400 uppercase tracking-wide">{t('totalCoins')}</div>
                 </div>
-                <div>
-                  <div className="text-3xl font-bold text-pink-400">20</div>
-                  <div className="text-xs text-slate-400 uppercase tracking-wide">Challenge Levels</div>
+                <div className="group cursor-default">
+                  <div className="text-4xl font-bold text-pink-400 group-hover:scale-110 transition-transform">20</div>
+                  <div className="text-xs text-slate-400 uppercase tracking-wide">{t('challengeLevels')}</div>
                 </div>
               </div>
             </div>
@@ -1038,19 +1326,20 @@ function App() {
 
       case 'modes':
         return (
-          <GameModeSelector 
+          <GameModeSelector
             onSelectMode={(mode) => {
               setGameMode(mode);
               setCurrentPage(mode === 'sandbox' ? 'sandbox' : 'game');
             }}
             onBack={() => setCurrentPage('home')}
+            t={t}
           />
         );
 
       case 'sandbox':
       case 'game':
         return (
-          <div className="pt-16 py-12 min-h-screen text-white px-4 flex flex-col">
+          <div className="pt-20 py-12 min-h-screen text-white px-4 flex flex-col">
             <GameHUD
               gameMode={gameMode}
               score={score}
@@ -1070,112 +1359,117 @@ function App() {
               onQuit={handleQuit}
             />
 
-            <h2 className="text-4xl font-extrabold text-center mb-6 bg-gradient-to-r from-cyan-400 to-purple-500 text-transparent bg-clip-text tracking-tight">
-              {gameMode === 'sandbox' ? 'Sandbox Mode' : 
-               gameMode === 'challenge' ? `Challenge Level ${currentLevel}` :
-               gameMode === 'survival' ? 'Survival Mode' :
-               gameMode === 'collection' ? 'Collection Mode' :
-               'Chain Reaction Mode'}
+            <h2 className="text-5xl font-extrabold text-center mb-8 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight drop-shadow-lg">
+              {gameMode === 'sandbox' ? t('sandboxModeTitle') :
+               gameMode === 'challenge' ? `${t('challengeLevel')} ${currentLevel}` :
+               gameMode === 'survival' ? t('survivalModeTitle') :
+               gameMode === 'collection' ? t('collectionModeTitle') :
+               t('chainReactionMode')}
             </h2>
 
-            <div className="max-w-7xl mx-auto space-y-4 flex-grow flex flex-col">
+            <div className="max-w-7xl mx-auto space-y-6 flex-grow flex flex-col">
               {gameMode === 'sandbox' && (
                 <>
-                  <div className="toolbar justify-center gap-3">
-                    <select value={mode} onChange={(e) => setMode(e.target.value)} className="p-2 bg-slate-800 text-white rounded border border-purple-500/50">
-                      <option value="balls">Bouncing Balls</option>
-                      <option value="sand">Falling Sand</option>
-                      <option value="water">Water Drops</option>
-                      <option value="plasma">Plasma Energy</option>
-                      <option value="metal">Metal Chunks</option>
-                      <option value="explosive">Explosives</option>
+                  <div className="toolbar justify-center gap-3 backdrop-blur-xl">
+                    <select value={mode} onChange={(e) => setMode(e.target.value)} className="px-4 py-2">
+                      <option value="balls">{t('bouncingBalls')}</option>
+                      <option value="sand">{t('fallingSand')}</option>
+                      <option value="water">{t('waterDrops')}</option>
+                      <option value="plasma">{t('plasmaEnergy')}</option>
+                      <option value="metal">{t('metalChunks')}</option>
+                      <option value="explosive">{t('explosives')}</option>
                     </select>
-                    <button onClick={() => spawnParticles((renderRef.current?.options?.width || 1000) / 2, 100, 1)} className="btn-primary">Add Particle</button>
-                    <button onClick={stressTest} className="btn-warning">Stress Test (500)</button>
-                    <button onClick={megaStressTest} className="btn-danger">MEGA TEST (2000)</button>
-                    <button onClick={clearWorld} className="btn btn-ghost">Clear All</button>
+                    <button onClick={() => spawnParticles((renderRef.current?.options?.width || 1000) / 2, 100, 1)} className="btn-primary">{t('addParticle')}</button>
+                    <button onClick={stressTest} className="btn-warning">{t('stressTest')}</button>
+                    <button onClick={megaStressTest} className="btn-danger">{t('megaTest')}</button>
+                    <button onClick={clearWorld} className="btn btn-ghost">{t('clearAll')}</button>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="control-group">
-                      <label className="block text-xs uppercase tracking-wide text-slate-300 mb-1">Gravity: {gravity}</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="control-group backdrop-blur-xl">
+                      <label className="block text-xs uppercase tracking-wider text-purple-300 font-bold mb-2">{t('gravity')}: <span className="text-cyan-400">{gravity.toFixed(1)}</span></label>
                       <input type="range" min="-2" max="3" step="0.1" value={gravity} onChange={(e) => setGravity(parseFloat(e.target.value))} className="w-full" />
                     </div>
-                    <div className="control-group">
-                      <label className="block text-xs uppercase tracking-wide text-slate-300 mb-1">Size: {particleSize}</label>
+                    <div className="control-group backdrop-blur-xl">
+                      <label className="block text-xs uppercase tracking-wider text-purple-300 font-bold mb-2">{t('size')}: <span className="text-cyan-400">{particleSize}</span></label>
                       <input type="range" min="1" max="30" value={particleSize} onChange={(e) => setParticleSize(parseInt(e.target.value))} className="w-full" />
                     </div>
-                    <div className="control-group">
-                      <label className="block text-xs uppercase tracking-wide text-slate-300 mb-1">Wind: {windForce}</label>
+                    <div className="control-group backdrop-blur-xl">
+                      <label className="block text-xs uppercase tracking-wider text-purple-300 font-bold mb-2">{t('wind')}: <span className="text-cyan-400">{windForce}</span></label>
                       <input type="range" min="-50" max="50" value={windForce} onChange={(e) => setWindForce(parseInt(e.target.value))} className="w-full" />
                     </div>
-                    <div className="control-group">
-                      <label className="block text-xs uppercase tracking-wide text-slate-300 mb-1">Magnet: {magnetStrength}</label>
+                    <div className="control-group backdrop-blur-xl">
+                      <label className="block text-xs uppercase tracking-wider text-purple-300 font-bold mb-2">{t('magnet')}: <span className="text-cyan-400">{magnetStrength}</span></label>
                       <input type="range" min="-100" max="100" value={magnetStrength} onChange={(e) => setMagnetStrength(parseInt(e.target.value))} className="w-full" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="control-group">
-                      <label className="block text-xs uppercase tracking-wide text-slate-300 mb-1">Time: {timeScale}</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="control-group backdrop-blur-xl">
+                      <label className="block text-xs uppercase tracking-wider text-purple-300 font-bold mb-2">{t('time')}: <span className="text-cyan-400">{timeScale.toFixed(1)}</span></label>
                       <input type="range" min="0.1" max="3" step="0.1" value={timeScale} onChange={(e) => setTimeScale(parseFloat(e.target.value))} className="w-full" />
                     </div>
-                    <div className="control-group">
-                      <label className="block text-xs uppercase tracking-wide text-slate-300 mb-1">Explosion: {explosionPower}</label>
+                    <div className="control-group backdrop-blur-xl">
+                      <label className="block text-xs uppercase tracking-wider text-purple-300 font-bold mb-2">{t('explosion')}: <span className="text-cyan-400">{explosionPower}</span></label>
                       <input type="range" min="10" max="200" value={explosionPower} onChange={(e) => setExplosionPower(parseInt(e.target.value))} className="w-full" />
                     </div>
-                    <div className="control-group">
-                      <label className="block text-xs uppercase tracking-wide text-slate-300 mb-1">Color</label>
+                    <div className="control-group backdrop-blur-xl">
+                      <label className="block text-xs uppercase tracking-wider text-purple-300 font-bold mb-2">{t('color')}</label>
                       <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-full h-8 rounded" />
                     </div>
-                    <div className="control-group flex items-center justify-center">
+                    <div className="control-group backdrop-blur-xl flex items-center justify-center">
                       <button onClick={() => setScreenShake(!screenShake)} className={`btn ${screenShake ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'}`}>
-                        Screen Shake
+                        {t('screenShake')}
                       </button>
                     </div>
                   </div>
 
-                  <div className="card p-4">
-                    <h3 className="text-sm font-bold mb-2 text-purple-300 uppercase tracking-wide">Tools</h3>
+
+                  <div className="card p-5 backdrop-blur-xl">
+                    <h3 className="text-sm font-bold mb-3 text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                      <span className="text-lg">🛠️</span> {t('tools')}
+                    </h3>
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => setToolMode('none')} className={`btn ${toolMode === 'none' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'}`}>Normal</button>
-                      <button onClick={() => setToolMode('spray')} className={`btn ${toolMode === 'spray' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-700 hover:bg-blue-600'}`}>Spray</button>
-                      <button onClick={() => setToolMode('gun')} className={`btn ${toolMode === 'gun' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-700 hover:bg-yellow-600'}`}>Particle Gun</button>
-                      <button onClick={() => setToolMode('explosion')} className={`btn ${toolMode === 'explosion' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-700 hover:bg-red-600'}`}>Exploder</button>
+                      <button onClick={() => setToolMode('none')} className={`btn ${toolMode === 'none' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'}`}>{t('normal')}</button>
+                      <button onClick={() => setToolMode('spray')} className={`btn ${toolMode === 'spray' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-700 hover:bg-blue-600'}`}>{t('spray')}</button>
+                      <button onClick={() => setToolMode('gun')} className={`btn ${toolMode === 'gun' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-700 hover:bg-yellow-600'}`}>{t('particleGun')}</button>
+                      <button onClick={() => setToolMode('explosion')} className={`btn ${toolMode === 'explosion' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-700 hover:bg-red-600'}`}>{t('exploder')}</button>
                     </div>
                   </div>
 
-                  <div className="card p-4">
-                    <h3 className="text-sm font-bold mb-2 text-cyan-300 uppercase tracking-wide">Colliders</h3>
+                  <div className="card p-5 backdrop-blur-xl">
+                    <h3 className="text-sm font-bold mb-3 text-cyan-300 uppercase tracking-wider flex items-center gap-2">
+                      <span className="text-lg">⚙️</span> {t('colliders')}
+                    </h3>
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => setColliderMode('none')} className={`btn ${colliderMode === 'none' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'}`}>None</button>
-                      <button onClick={() => setColliderMode('platform')} className={`btn ${colliderMode === 'platform' ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-700 hover:bg-amber-600'}`}>Platform</button>
-                      <button onClick={() => setColliderMode('bouncer')} className={`btn ${colliderMode === 'bouncer' ? 'bg-green-600 hover:bg-green-700' : 'bg-pink-700 hover:bg-pink-600'}`}>Super Bouncer</button>
-                      <button onClick={() => setColliderMode('magnet')} className={`btn ${colliderMode === 'magnet' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-700 hover:bg-blue-600'}`}>Magnet</button>
-                      <button onClick={() => setColliderMode('destroyer')} className={`btn ${colliderMode === 'destroyer' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-700 hover:bg-red-600'}`}>Destroyer</button>
-                      <button onClick={() => setColliderMode('portal')} className={`btn ${colliderMode === 'portal' ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-700 hover:bg-purple-600'}`}>Portal</button>
-                      <button onClick={() => setColliderMode('spinner')} className={`btn ${colliderMode === 'spinner' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-700 hover:bg-green-600'}`}>Spinner</button>
+                      <button onClick={() => setColliderMode('none')} className={`btn ${colliderMode === 'none' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'}`}>{t('none')}</button>
+                      <button onClick={() => setColliderMode('platform')} className={`btn ${colliderMode === 'platform' ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-700 hover:bg-amber-600'}`}>{t('platform')}</button>
+                      <button onClick={() => setColliderMode('bouncer')} className={`btn ${colliderMode === 'bouncer' ? 'bg-green-600 hover:bg-green-700' : 'bg-pink-700 hover:bg-pink-600'}`}>{t('superBouncer')}</button>
+                      <button onClick={() => setColliderMode('magnet')} className={`btn ${colliderMode === 'magnet' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-700 hover:bg-blue-600'}`}>{t('magnetTool')}</button>
+                      <button onClick={() => setColliderMode('destroyer')} className={`btn ${colliderMode === 'destroyer' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-700 hover:bg-red-600'}`}>{t('destroyer')}</button>
+                      <button onClick={() => setColliderMode('portal')} className={`btn ${colliderMode === 'portal' ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-700 hover:bg-purple-600'}`}>{t('portal')}</button>
+                      <button onClick={() => setColliderMode('spinner')} className={`btn ${colliderMode === 'spinner' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-700 hover:bg-green-600'}`}>{t('spinner')}</button>
                     </div>
                   </div>
 
                   {showStats && (
-                    <div className="card p-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                        <div>
-                          <div className="text-2xl font-extrabold text-red-400">{fps}</div>
-                          <div className="text-xs uppercase tracking-wide text-slate-300">FPS</div>
+                    <div className="card p-5 backdrop-blur-xl">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                        <div className="group cursor-default">
+                          <div className="text-3xl font-extrabold bg-gradient-to-r from-red-400 to-red-600 text-transparent bg-clip-text group-hover:scale-110 transition-transform">{fps}</div>
+                          <div className="text-xs uppercase tracking-wide text-slate-300">{t('fps')}</div>
                         </div>
-                        <div>
-                          <div className="text-2xl font-extrabold text-blue-400">{particleCount}</div>
-                          <div className="text-xs uppercase tracking-wide text-slate-300">Particles</div>
+                        <div className="group cursor-default">
+                          <div className="text-3xl font-extrabold bg-gradient-to-r from-blue-400 to-blue-600 text-transparent bg-clip-text group-hover:scale-110 transition-transform">{particleCount}</div>
+                          <div className="text-xs uppercase tracking-wide text-slate-300">{t('particles')}</div>
                         </div>
-                        <div>
-                          <div className="text-2xl font-extrabold text-green-400">{highScore.particles}</div>
-                          <div className="text-xs uppercase tracking-wide text-slate-300">High Score</div>
+                        <div className="group cursor-default">
+                          <div className="text-3xl font-extrabold bg-gradient-to-r from-green-400 to-green-600 text-transparent bg-clip-text group-hover:scale-110 transition-transform">{highScore.particles}</div>
+                          <div className="text-xs uppercase tracking-wide text-slate-300">{t('highScore')}</div>
                         </div>
-                        <div>
-                          <div className="text-2xl font-extrabold text-purple-400">{collidersRef.current.length}</div>
-                          <div className="text-xs uppercase tracking-wide text-slate-300">Colliders</div>
+                        <div className="group cursor-default">
+                          <div className="text-3xl font-extrabold bg-gradient-to-r from-purple-400 to-purple-600 text-transparent bg-clip-text group-hover:scale-110 transition-transform">{collidersRef.current.length}</div>
+                          <div className="text-xs uppercase tracking-wide text-slate-300">{t('collidersCount')}</div>
                         </div>
                       </div>
                     </div>
@@ -1184,20 +1478,45 @@ function App() {
               )}
 
               {gameMode !== 'sandbox' && (
-                <div className="card p-4 text-center">
-                  <p className="text-slate-300">
-                    {gameMode === 'challenge' && `Particle Budget: ${particlesSpawned}/${particleBudget}`}
-                    {gameMode === 'survival' && 'Use colliders to defend your core!'}
-                    {gameMode === 'collection' && 'Click and drag to spawn particles, or let them spawn automatically'}
-                    {gameMode === 'reaction' && `Explosions: ${explosionsUsed}/${maxExplosions} - Click to create explosions`}
-                  </p>
-                </div>
+                <>
+                  <div className="card p-5 text-center backdrop-blur-xl">
+                    <p className="text-slate-300">
+                      {gameMode === 'challenge' && `${t('particleBudget')}: ${particlesSpawned}/${particleBudget}`}
+                      {gameMode === 'survival' && t('defendCore')}
+                      {gameMode === 'collection' && t('collectionInstruction')}
+                      {gameMode === 'reaction' && t('reactionInstruction').replace('{used}', explosionsUsed).replace('{max}', maxExplosions)}
+                    </p>
+                  </div>
+
+                  <div className="card p-5 text-center backdrop-blur-xl">
+                    <button onClick={() => setParticleTrails(!particleTrails)} className={`btn ${particleTrails ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'}`}>
+                      {particleTrails ? 'Disable Trails' : 'Enable Trails'}
+                    </button>
+                  </div>
+
+                  {(gameMode === 'survival' || gameMode === 'challenge') && (
+                    <div className="card p-5 backdrop-blur-xl">
+                      <h3 className="text-sm font-bold mb-3 text-cyan-300 uppercase tracking-wider flex items-center gap-2">
+                        <span className="text-lg">⚙️</span>
+                        {t('colliders')} ({collidersPlaced}/{colliderLimit})
+                      </h3>
+                      <p className="text-xs text-slate-400 mb-3">💡 Use mouse wheel to rotate colliders</p>
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => setColliderMode('none')} className={`btn ${colliderMode === 'none' ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'}`}>{t('none')}</button>
+                        <button onClick={() => setColliderMode('platform')} className={`btn ${colliderMode === 'platform' ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-700 hover:bg-amber-600'}`}>{t('platform')}</button>
+                        <button onClick={() => setColliderMode('bouncer')} className={`btn ${colliderMode === 'bouncer' ? 'bg-green-600 hover:bg-green-700' : 'bg-pink-700 hover:bg-pink-600'}`}>{t('superBouncer')}</button>
+                        <button onClick={() => setColliderMode('destroyer')} className={`btn ${colliderMode === 'destroyer' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-700 hover:bg-red-600'}`}>{t('destroyer')}</button>
+                        <button onClick={() => setColliderMode('spinner')} className={`btn ${colliderMode === 'spinner' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-700 hover:bg-green-600'}`}>{t('spinner')}</button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              <div className="card p-2 overflow-y-auto flex-grow">
+              <div className="card p-4 flex-grow flex items-center justify-center backdrop-blur-xl">
                 <div
                   ref={simContainerRef}
-                  className="mx-auto w-full max-w-[1000px] aspect-[10/7]"
+                  style={{ width: '100%', maxWidth: '1400px', margin: 'auto' }}
                 >
                   <div
                     ref={sceneRef}
@@ -1205,7 +1524,7 @@ function App() {
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
-                    className="border-2 border-purple-500/30 mx-auto cursor-crosshair rounded-lg overflow-hidden w-full h-full"
+                    className={`sim-stage relative w-full overflow-hidden ${gameMode === 'collection' ? 'cursor-grab' : 'cursor-crosshair'}`}
                   />
                 </div>
               </div>
@@ -1215,15 +1534,23 @@ function App() {
 
       case 'leaderboard':
         return (
-          <div className="pt-16 py-12 min-h-screen text-white px-4">
-            <h2 className="text-4xl font-extrabold text-center mb-8">Leaderboard</h2>
-            <div className="max-w-md mx-auto card p-8 text-center space-y-4">
-              <p className="text-2xl mb-4">Sandbox High Score</p>
-              <p className="text-xl">{highScore.particles} particles</p>
-              <p className="text-lg text-slate-300">at {highScore.fps} FPS</p>
-              <div className="pt-4 border-t border-white/10">
-                <p className="text-2xl text-green-400">💰 {coins}</p>
-                <p className="text-sm text-slate-400">Total Coins Earned</p>
+          <div className="pt-20 py-12 min-h-screen text-white px-4">
+            <h2 className="text-5xl font-extrabold text-center mb-12 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight">{t('leaderboard')}</h2>
+            <div className="max-w-md mx-auto card p-8 text-center space-y-6 backdrop-blur-xl">
+              <p className="text-3xl font-bold mb-6 text-purple-300">{t('sandboxHighScore')}</p>
+              <div className="space-y-4">
+                <div className="card p-4 backdrop-blur-md">
+                  <p className="text-4xl font-extrabold bg-gradient-to-r from-blue-400 to-blue-600 text-transparent bg-clip-text">{highScore.particles}</p>
+                  <p className="text-sm text-slate-400 uppercase tracking-wide mt-2">{t('particles')}</p>
+                </div>
+                <div className="card p-4 backdrop-blur-md">
+                  <p className="text-4xl font-extrabold bg-gradient-to-r from-red-400 to-red-600 text-transparent bg-clip-text">{highScore.fps}</p>
+                  <p className="text-sm text-slate-400 uppercase tracking-wide mt-2">{t('fps')}</p>
+                </div>
+              </div>
+              <div className="pt-6 border-t border-white/10">
+                <p className="text-4xl font-bold text-green-400">💰 {coins}</p>
+                <p className="text-sm text-slate-400">{t('totalCoinsEarned')}</p>
               </div>
             </div>
           </div>
@@ -1231,33 +1558,33 @@ function App() {
 
       case 'about':
         return (
-          <div className="pt-16 py-12 min-h-screen text-white px-4">
-            <h2 className="text-4xl font-extrabold text-center mb-8">About</h2>
-            <div className="max-w-2xl mx-auto card p-8">
-              <p className="text-xl mb-4 text-center">PhysicsBox Game Collection</p>
-              <p className="mb-4 text-center text-slate-300">Built with React + Matter.js</p>
+          <div className="pt-20 py-12 min-h-screen text-white px-4">
+            <h2 className="text-5xl font-extrabold text-center mb-12 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 text-transparent bg-clip-text tracking-tight">{t('about')}</h2>
+            <div className="max-w-2xl mx-auto card p-8 backdrop-blur-xl">
+              <p className="text-xl mb-4 text-center">{t('title')} {t('subtitle')}</p>
+              <p className="mb-4 text-center text-slate-300">{t('builtWith')}</p>
               <div className="text-left space-y-4">
                 <div>
-                  <h3 className="text-lg font-bold text-purple-400 mb-2">Game Modes</h3>
+                  <h3 className="text-lg font-bold text-purple-400 mb-2">{t('gameModesSection')}</h3>
                   <ul className="list-disc list-inside space-y-1 text-slate-300">
-                    <li>Sandbox - Free play with unlimited resources</li>
-                    <li>Challenge - 20 progressive puzzle levels</li>
-                    <li>Survival - Defend against endless waves</li>
-                    <li>Collection - Sort colored particles</li>
-                    <li>Chain Reaction - Create explosive combos</li>
+                    <li>{t('sandboxMode')} - {t('sandboxDescription')}</li>
+                    <li>{t('challengeMode')} - {t('challengeDescription')}</li>
+                    <li>{t('survivalMode')} - {t('survivalDescription')}</li>
+                    <li>{t('collectionMode')} - {t('collectionDescription')}</li>
+                    <li>{t('reactionMode')} - {t('reactionDescription')}</li>
                   </ul>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-cyan-400 mb-2">Features</h3>
+                  <h3 className="text-lg font-bold text-cyan-400 mb-2">{t('featuresSection')}</h3>
                   <ul className="list-disc list-inside space-y-1 text-slate-300">
-                    <li>50,000 particle limit</li>
-                    <li>6 particle types with unique physics</li>
-                    <li>Advanced tools: Particle gun, explosions, spray</li>
-                    <li>Interactive colliders: Magnets, portals, destroyers</li>
-                    <li>Real-time physics forces: Wind, magnetism, gravity</li>
-                    <li>Coin system and progression</li>
-                    <li>Screen shake effects</li>
-                    <li>Time scaling controls</li>
+                    <li>{t('particleLimit')}</li>
+                    <li>{t('particleTypes')}</li>
+                    <li>{t('advancedTools')}</li>
+                    <li>{t('interactiveColliders')}</li>
+                    <li>{t('physicsForces')}</li>
+                    <li>{t('coinSystem')}</li>
+                    <li>{t('screenShakeEffects')}</li>
+                    <li>{t('timeScaling')}</li>
                   </ul>
                 </div>
               </div>
@@ -1272,7 +1599,7 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar setCurrentPage={setCurrentPage} />
+      <Navbar setCurrentPage={setCurrentPage} currentLanguage={currentLanguage} onLanguageChange={handleLanguageChange} />
       <main className="flex-1 flex flex-col">
         {renderPage()}
       </main>
