@@ -102,6 +102,8 @@ function App() {
     currentGameStateRef.current = gameState;
   }, [gameState]);
 
+
+
   useEffect(() => {
     const saved = localStorage.getItem("highScore");
     if (saved) setHighScore(JSON.parse(saved));
@@ -1653,6 +1655,8 @@ function App() {
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
     document.documentElement.lang = language;
   };
+
+
 
   const t = (key) => {
     return translations[currentLanguage][key] || key;

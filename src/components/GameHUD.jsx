@@ -100,7 +100,7 @@ export default function GameHUD({
                     <span>{objective.progress}/{objective.target}</span>
                   </div>
                   <div className="w-full bg-slate-700 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-gradient-to-r from-cyan-500 to-purple-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${Math.min(100, (objective.progress / objective.target) * 100)}%` }}
                     />
