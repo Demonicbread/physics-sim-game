@@ -26,6 +26,16 @@ const translations = {
     reactionMode: "Chain Reaction",
     reactionDescription:
       "Create explosive chain reactions (work in progress, may not work)",
+    fusionMode: "Fusion Mode",
+    fusionDescription:
+      "Combine particle types into new materials (prototype)",
+    chaosMode: "Chaos Mode",
+    chaosDescription: "Randomize physics for chaotic fun (prototype)",
+    constructionMode: "Construction Mode",
+    constructionDescription:
+      "Build mechanisms with connectors, springs and motors (prototype)",
+    simulationLab: "Simulation Lab",
+    labDescription: "Preset scientific scenarios (prototype)",
 
     // Game mode selector
     selectGameMode: "Select Game Mode",
@@ -119,6 +129,20 @@ const translations = {
     coinSystem: "Coin system and progression",
     screenShakeEffects: "Screen shake effects",
     timeScaling: "Time scaling controls",
+  fusion: "Fusion",
+  chaos: "Chaos",
+  construction: "Construction",
+  simulationLab: "Simulation Lab",
+  achievements: "Achievements",
+  shop: "Shop",
+  saveContraption: "Save Contraption",
+  loadContraption: "Load Contraption",
+  heatmap: "Heatmap",
+  slowMo: "Slow-Mo",
+  teslaCoil: "Tesla Coil",
+  ropeTool: "Rope Tool",
+  filters: "Filters",
+  exportClip: "Export Clip",
 
     // Navbar
     home: "Home",
@@ -155,6 +179,14 @@ const translations = {
     reactionMode: "التفاعلات المتسلسلة",
     reactionDescription:
       "أنشئ تفاعلات متفجرة متسلسلة (قيد التطوير، قد لا يعمل)",
+    fusionMode: "وضع الاندماج",
+    fusionDescription: "ادمج أنواع الجسيمات إلى مواد جديدة (نموذج أولي)",
+    chaosMode: "وضع الفوضى",
+    chaosDescription: "عشوائية الفيزياء لتجربة فوضوية (نموذج أولي)",
+    constructionMode: "وضع البناء",
+    constructionDescription: "ابنِ آليات باستخدام وصلات ونوابض ومحركات (نموذج أولي)",
+    simulationLab: "معمل المحاكاة",
+    labDescription: "سيناريوهات علمية مُعدة مسبقًا (نموذج أولي)",
 
     // Game mode selector
     selectGameMode: "اختر وضع اللعب",
@@ -246,6 +278,20 @@ const translations = {
     coinSystem: "نظام العملات والتقدم",
     screenShakeEffects: "تأثيرات اهتزاز الشاشة",
     timeScaling: "ضوابط تكبير الوقت",
+  fusion: "الاندماج",
+  chaos: "الفوضى",
+  construction: "البناء",
+  simulationLab: "معمل المحاكاة",
+  achievements: "الإنجازات",
+  shop: "المتجر",
+  saveContraption: "حفظ التركيب",
+  loadContraption: "تحميل التركيب",
+  heatmap: "خريطة الحرارة",
+  slowMo: "تباطؤ الحركة",
+  teslaCoil: "ملف تسلا",
+  ropeTool: "أداة الحبل",
+  filters: "المرشحات",
+  exportClip: "تصدير مقطع",
 
     // Navbar
     home: "الرئيسية",
@@ -283,6 +329,15 @@ const translations = {
     reactionMode: "Reacción en Cadena",
     reactionDescription:
       "Crea reacciones en cadena explosivas (en desarrollo, puede no funcionar)",
+    fusionMode: "Modo Fusión",
+    fusionDescription: "Combina tipos de partículas en nuevos materiales (prototipo)",
+    chaosMode: "Modo Caos",
+    chaosDescription: "Aleatoriza la física para diversión caótica (prototipo)",
+    constructionMode: "Modo Construcción",
+    constructionDescription:
+      "Construye mecanismos con conectores, resortes y motores (prototipo)",
+    simulationLab: "Laboratorio de Simulación",
+    labDescription: "Escenarios científicos preestablecidos (prototipo)",
 
     // Game mode selector
     selectGameMode: "Seleccionar Modo de Juego",
@@ -376,6 +431,20 @@ const translations = {
     coinSystem: "Sistema de monedas y progreso",
     screenShakeEffects: "Efectos de sacudida de pantalla",
     timeScaling: "Controles de escalado de tiempo",
+  fusion: "Fusión",
+  chaos: "Caos",
+  construction: "Construcción",
+  simulationLab: "Laboratorio de Simulación",
+  achievements: "Logros",
+  shop: "Tienda",
+  saveContraption: "Guardar Construcción",
+  loadContraption: "Cargar Construcción",
+  heatmap: "Mapa de Calor",
+  slowMo: "Cámara Lenta",
+  teslaCoil: "Bobina Tesla",
+  ropeTool: "Herramienta Cuerda",
+  filters: "Filtros",
+  exportClip: "Exportar Clip",
 
     // Navbar
     home: "Inicio",

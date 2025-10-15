@@ -37,6 +37,34 @@ export default function GameModeSelector({ onSelectMode, onBack, t }) {
       description: t("reactionDescription"),
       color: "from-yellow-500 to-amber-500",
     },
+    {
+      id: "fusion",
+      name: t("fusionMode"),
+      icon: "🔬",
+      description: t("fusionDescription"),
+      color: "from-pink-500 to-purple-500",
+    },
+    {
+      id: "chaos",
+      name: t("chaosMode"),
+      icon: "🌪️",
+      description: t("chaosDescription"),
+      color: "from-red-500 to-yellow-500",
+    },
+    {
+      id: "construction",
+      name: t("constructionMode"),
+      icon: "🛠️",
+      description: t("constructionDescription"),
+      color: "from-green-500 to-emerald-500",
+    },
+    {
+      id: "lab",
+      name: t("simulationLab"),
+      icon: "⚗️",
+      description: t("labDescription"),
+      color: "from-cyan-500 to-blue-500",
+    },
   ];
 
   return (

@@ -55,6 +55,19 @@ function App() {
   const [toolMode, setToolMode] = useState("none");
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [windForce, setWindForce] = useState(0);
+  const [enableFusion, setEnableFusion] = useState(false);
+  const [enableChaos, setEnableChaos] = useState(false);
+  const [enableConstruction, setEnableConstruction] = useState(false);
+  const [enableLab, setEnableLab] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [achievements, setAchievements] = useState([]);
+  const [shopOpen, setShopOpen] = useState(false);
+  const [contraptions, setContraptions] = useState(() => {
+    try {
+      const raw = localStorage.getItem('contraptions');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  });
   const [magnetStrength, setMagnetStrength] = useState(0);
   const [collectionMagnetStrength, setCollectionMagnetStrength] = useState(100);
   const [explosionPower, setExplosionPower] = useState(50);
@@ -70,6 +83,9 @@ function App() {
   const dragOffsetRef = useRef({ x: 0, y: 0 }); // Offset between pointer and particle center
   const [renderTick, setRenderTick] = useState(0); // Trigger for manual redraws if needed
   const [showStats, setShowStats] = useState(true);
+  // Spatial hash for neighbor queries (opt)
+  const spatialHashRef = useRef({});
+  const hashCellSize = 60;
 
   // Refs
   const simContainerRef = useRef(null);
@@ -100,6 +116,30 @@ function App() {
   useEffect(() => {
     windForceRef.current = windForce;
   }, [windForce]);
+  useEffect(() => {
+    // when chaos mode toggled, seed some randomization
+    if (enableChaos && engineRef.current) {
+      // small immediate random nudge
+      engineRef.current.world.gravity.y = (Math.random() - 0.5) * 4;
+      engineRef.current.timing.timeScale = Math.random() * 2 + 0.2;
+    }
+  }, [enableChaos]);
+
+  // slow-mo on shift
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Shift') setTimeScale(0.35);
+    };
+    const onKeyUp = (e) => {
+      if (e.key === 'Shift') setTimeScale(1);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
   useEffect(() => {
     magnetStrengthRef.current = magnetStrength;
   }, [magnetStrength]);
@@ -205,6 +245,11 @@ function App() {
 
       if (body) {
         body.isParticle = true;
+        // Attach prototype systems
+        body.temperature = customProps.temperature || 20; // Celsius-ish
+        body.charge = customProps.charge || 0; // -1,0,1 basic
+        body.pressure = 0;
+  body.links = [];
         if (particleTrails) body.trail = [];
         Matter.World.add(world, body);
         particlesRef.current.push(body);
@@ -227,6 +272,41 @@ function App() {
       gameMode,
     ]
   );
+
+  // Spatial hash helpers
+  const hashKey = (x, y) => {
+    const xi = Math.floor(x / hashCellSize);
+    const yi = Math.floor(y / hashCellSize);
+    return `${xi},${yi}`;
+  };
+  const rebuildSpatialHash = () => {
+    const map = Object.create(null);
+    particlesRef.current.forEach((p) => {
+      const key = hashKey(p.position.x, p.position.y);
+      if (!map[key]) map[key] = [];
+      map[key].push(p);
+    });
+    spatialHashRef.current = map;
+  };
+  const nearbyParticles = (p, radius = 60) => {
+    const r = radius;
+    const xi = Math.floor(p.position.x / hashCellSize);
+    const yi = Math.floor(p.position.y / hashCellSize);
+    const found = [];
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const key = `${xi + dx},${yi + dy}`;
+        const list = spatialHashRef.current[key];
+        if (!list) continue;
+        for (const q of list) {
+          const dx2 = q.position.x - p.position.x;
+          const dy2 = q.position.y - p.position.y;
+          if (dx2*dx2 + dy2*dy2 <= r*r) found.push(q);
+        }
+      }
+    }
+    return found;
+  };
 
   // Survival Mode Hook
   const { handleSurvivalCollision } = useSurvivalMode({
@@ -717,6 +797,16 @@ function App() {
             continue; // Skip other handlers if survival mode handled it
           }
         }
+        // Fusion handling: if enabled, check for compatible pairs
+        if (enableFusion) {
+          const a = pair.bodyA;
+          const b = pair.bodyB;
+          try {
+            fusionHandler(a, b);
+          } catch (e) {
+            // non-fatal
+          }
+        }
         handleSensorCollision(pair.bodyA, pair.bodyB);
         handleSensorCollision(pair.bodyB, pair.bodyA);
       }
@@ -949,10 +1039,19 @@ function App() {
       }
 
       // Collection mode: Direct position setting for dragged particle
+      // Chaos mode: slight random fluctuations to global parameters
+      if (enableChaos && engineRef.current) {
+        if (Math.random() < 0.005) {
+          engineRef.current.world.gravity.y = (Math.random() - 0.5) * 4;
+        }
+        if (Math.random() < 0.01) {
+          engineRef.current.timing.timeScale = 0.5 + Math.random() * 2.5;
+        }
+      }
       // Now handled by pointer events above for better performance and control
       // Old magnet force code removed (was applying continuous force in physics loop)
 
-      collidersRef.current.forEach((collider) => {
+  collidersRef.current.forEach((collider) => {
         if (collider.isSpinner) {
           const desired = 0.1;
           const ang = collider.angularVelocity || 0;
@@ -1002,6 +1101,39 @@ function App() {
         x: newX,
         y: collider.position.y,
       });
+
+      // Rebuild spatial hash every 6 frames (tunable)
+      if (frameCount % 6 === 0) rebuildSpatialHash();
+
+      // Temperature/pressure/charge simulation using spatial hash
+      const parts = particlesRef.current;
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        if (!p) continue;
+        // Temperature: hotter particles slowly rise
+        if (p.temperature && Math.abs(p.temperature - 20) > 0.1) {
+          const tForce = (p.temperature - 20) * -0.00002;
+          Matter.Body.applyForce(p, p.position, { x: 0, y: tForce });
+        }
+        // Neighbors via spatial hash
+        const neighbors = nearbyParticles(p, 60);
+        if (neighbors.length > 3) {
+          const f = (neighbors.length - 3) * 0.000002;
+          Matter.Body.applyForce(p, p.position, { x: (Math.random() - 0.5) * f, y: (Math.random() - 0.5) * f });
+        }
+        if (p.charge) {
+          for (const q of neighbors) {
+            if (q === p || !q.charge) continue;
+            const dx = q.position.x - p.position.x;
+            const dy = q.position.y - p.position.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            if (dist < 120) {
+              const forceMag = (p.charge * q.charge) * 0.00002 / (dist * dist);
+              Matter.Body.applyForce(p, p.position, { x: -dx * forceMag, y: -dy * forceMag });
+            }
+          }
+        }
+      }
       // Update magnet position if this is a magnet collider
       if (collider.magnetIndex !== undefined) {
         magnetsRef.current[collider.magnetIndex].position = { x: newX, y: collider.position.y };
@@ -1288,6 +1420,53 @@ function App() {
     [explosionPower, screenShake, gameMode, explosionsUsed, maxExplosions]
   );
 
+    // Simple fusion recipes and handler
+    const FUSION_RECIPES = {
+      // key is sorted types joined by '+'
+      'sand+water': (a, b) => ({ type: 'mud', color: '#6B4F3E' }),
+      'plasma+metal': (a, b) => ({ type: 'magnetized', color: '#FFD700' }),
+    };
+
+    const fusionHandler = (a, b) => {
+      if (!a || !b) return false;
+      if (!a.isParticle || !b.isParticle) return false;
+
+      const ta = a.label || a.type || a.particleType || 'generic';
+      const tb = b.label || b.type || b.particleType || 'generic';
+      const keyA = [ta, tb].map((s) => s.toString().toLowerCase()).sort().join('+');
+      const recipe = FUSION_RECIPES[keyA];
+      if (!recipe) return false;
+
+      // Energy/cooldown: simple random chance to fuse
+      if (Math.random() > 0.15) return false;
+
+      // Create fused particle at midpoint
+      const x = (a.position.x + b.position.x) / 2;
+      const y = (a.position.y + b.position.y) / 2;
+      // Remove originals
+      try {
+        Matter.World.remove(engineRef.current.world, a);
+        Matter.World.remove(engineRef.current.world, b);
+      } catch (e) {}
+      const idxA = particlesRef.current.indexOf(a);
+      if (idxA > -1) particlesRef.current.splice(idxA, 1);
+      const idxB = particlesRef.current.indexOf(b);
+      if (idxB > -1) particlesRef.current.splice(idxB, 1);
+      setParticleCount((c) => Math.max(0, c - 2));
+
+      const result = recipe(a, b);
+      const p = createParticle(x, y, {
+        render: { fillStyle: result.color || '#FFFFFF' },
+      });
+      if (p) {
+        p.particleType = result.type;
+        // small glow/explosion
+        explosionsRef.current.push({ x, y, power: 12, radius: 30, life: 0.8 });
+        return true;
+      }
+      return false;
+    };
+
   const createCollider = useCallback(
     (x, y, type) => {
       console.log("Creating collider:", {
@@ -1471,6 +1650,57 @@ function App() {
     },
     [gameMode, collidersPlaced, colliderLimit]
   );
+
+  // Save / load contraptions (simple JSON of collider positions/types)
+  const saveContraption = (name = `contraption-${Date.now()}`) => {
+    const data = collidersRef.current.map((c) => ({
+      type: c.isSpinner ? 'spinner' : c.portal ? 'portal' : c.isSensor ? (c.destroyer ? 'destroyer' : 'magnet') : 'platform',
+      x: c.position.x,
+      y: c.position.y,
+      angle: c.angle || 0,
+    }));
+    const next = [...contraptions, { name, data }];
+    setContraptions(next);
+    localStorage.setItem('contraptions', JSON.stringify(next));
+  };
+  const loadContraption = (index) => {
+    const c = contraptions[index];
+    if (!c) return;
+    clearWorld();
+    c.data.forEach((d) => createCollider(d.x, d.y, d.type));
+  };
+
+  // Rope / chain tool - create series of constraints between two points
+  const createRope = (x1, y1, x2, y2, segments = 10) => {
+    if (!engineRef.current) return;
+    const world = engineRef.current.world;
+    const dx = (x2 - x1) / segments;
+    const dy = (y2 - y1) / segments;
+    let prev = null;
+    for (let i = 0; i <= segments; i++) {
+      const x = x1 + dx * i;
+      const y = y1 + dy * i;
+      const node = Matter.Bodies.circle(x, y, 6, { density: 0.001, frictionAir: 0.02 });
+      Matter.World.add(world, node);
+      particlesRef.current.push(node);
+      if (prev) {
+        const con = Matter.Constraint.create({ bodyA: prev, bodyB: node, length: Math.hypot(dx, dy), stiffness: 0.9 });
+        Matter.World.add(world, con);
+        constraintsRef.current.push(con);
+      }
+      prev = node;
+    }
+    setParticleCount(particlesRef.current.length);
+  };
+
+  // Tesla coil collider (emits electric arcs) - simple visual sensor and occasional sparks
+  const createTeslaCoil = (x, y) => {
+    if (!engineRef.current) return;
+    const world = engineRef.current.world;
+    const coil = Matter.Bodies.circle(x, y, 28, { isStatic: true, isSensor: true, render: { fillStyle: '#AA00FF' }, isTesla: true });
+    Matter.World.add(world, coil);
+    collidersRef.current.push(coil);
+  };
 
   const handleMouseDown = useCallback(
     (e) => {
@@ -1906,6 +2136,44 @@ function App() {
                       <button onClick={clearWorld} className="btn btn-ghost">
                         {t("clearAll")}
                       </button>
+                      <button
+                        onClick={() => setEnableFusion((v) => !v)}
+                        className={`btn ${enableFusion ? 'bg-purple-600 hover:bg-purple-700' : 'bg-slate-700 hover:bg-slate-600'}`}
+                      >
+                        Fusion
+                      </button>
+                      <button
+                        onClick={() => setEnableChaos((v) => !v)}
+                        className={`btn ${enableChaos ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-700 hover:bg-slate-600'}`}
+                      >
+                        Chaos
+                      </button>
+                      <button
+                        onClick={() => setEnableConstruction((v) => !v)}
+                        className={`btn ${enableConstruction ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600'}`}
+                      >
+                        Construction
+                      </button>
+                      <button
+                        onClick={() => setEnableLab((v) => !v)}
+                        className={`btn ${enableLab ? 'bg-cyan-600 hover:bg-cyan-700' : 'bg-slate-700 hover:bg-slate-600'}`}
+                      >
+                        Lab
+                      </button>
+                      <button onClick={() => saveContraption()} className="btn">
+                        {t('saveContraption')}
+                      </button>
+                      <div className="dropdown">
+                        <button className="btn">{t('loadContraption') || 'Load'}</button>
+                        <div className="dropdown-menu bg-slate-800 p-2">
+                          {contraptions.length ? contraptions.map((c, i) => (
+                            <div key={i} className="p-1"><button onClick={() => loadContraption(i)} className="w-full text-left">{c.name}</button></div>
+                          )) : <div className="p-1 text-slate-400">No saves</div>}
+                        </div>
+                      </div>
+                      <button onClick={() => createRope(200,100,400,200)} className="btn">{t('ropeTool')}</button>
+                      <button onClick={() => createTeslaCoil(300,150)} className="btn">{t('teslaCoil')}</button>
+                      <button onClick={() => setShowHeatmap(s => !s)} className="btn">{t('heatmap')}</button>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
