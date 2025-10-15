@@ -190,6 +190,11 @@ nav .logo {
   background: conic-gradient(from 180deg, #8b5cf6, #06b6d4, #ec4899, #8b5cf6);
   box-shadow: var(--glow-purple);
   animation: pulse-glow 3s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+nav .logo:hover {
+  transform: scale(1.1);
 }
 
 nav .nav-actions {
@@ -205,7 +210,8 @@ nav .nav-link {
   font-size: 0.9rem;
   color: var(--text-secondary);
   text-decoration: none;
-  border: 1px solid transparent;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
@@ -217,16 +223,16 @@ nav .nav-link::before {
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(168, 85, 247, 0.1),
-    rgba(34, 211, 238, 0.1)
+    rgba(168, 85, 247, 0.2),
+    rgba(34, 211, 238, 0.2)
   );
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
 nav .nav-link:hover {
-  background: var(--glass-bg-hover);
-  border-color: var(--glass-border);
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
 }
 

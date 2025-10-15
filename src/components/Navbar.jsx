@@ -12,7 +12,7 @@ export default function Navbar({
   return (
     <nav>
       <div className="brand">
-        <div className="logo"></div>
+        <div className="logo" onClick={() => setCurrentPage("home")}></div>
         Physics Sim
       </div>
       <div className="nav-actions">
@@ -20,9 +20,6 @@ export default function Navbar({
           currentLanguage={currentLanguage}
           onLanguageChange={onLanguageChange}
         />
-        <button onClick={() => setCurrentPage("home")} className="nav-link">
-          {t("home")}
-        </button>
         <button onClick={() => setCurrentPage("modes")} className="nav-link">
           {t("play")}
         </button>
