@@ -256,6 +256,137 @@ const translations = {
     english: "English",
     arabic: "العربية",
   },
+  es: {
+    // Home page
+    title: "PhysicsBox",
+    subtitle: "Caja de Física Relajante",
+    description:
+      "Relájate con una caja de partículas creativa y calmante. Construye, juega y observa cómo se desarrolla la física tranquilizadora — con mini-modos opcionales para desafíos adicionales.",
+    playNow: "JUGAR AHORA",
+    noInstall: "No requiere instalación • Funciona en cualquier navegador moderno",
+    gameModes: "Modos de Juego",
+    totalCoins: "Monedas Totales",
+    challengeLevels: "Niveles de Desafío",
+
+    // Game modes
+    sandboxMode: "Modo Caja de Arena",
+    sandboxDescription: "Relájate, crea y juega con física tranquilizadora",
+    challengeMode: "Modo Desafío",
+    challengeDescription:
+      "Completa objetivos en 20 niveles (en desarrollo, puede no funcionar)",
+    survivalMode: "Modo Supervivencia",
+    survivalDescription:
+      "Defiende tu núcleo de olas interminables (en desarrollo, puede no funcionar)",
+    collectionMode: "Modo Colección",
+    collectionDescription:
+      "Ordena partículas en zonas coincidentes (en desarrollo, puede no funcionar)",
+    reactionMode: "Reacción en Cadena",
+    reactionDescription:
+      "Crea reacciones en cadena explosivas (en desarrollo, puede no funcionar)",
+
+    // Game mode selector
+    selectGameMode: "Seleccionar Modo de Juego",
+    chooseAdventure: "Elige tu aventura física",
+    backToHome: "← Volver al Inicio",
+
+    // Game pages
+    sandboxModeTitle: "Modo Caja de Arena",
+    challengeLevel: "Nivel de Desafío",
+    survivalModeTitle: "Modo Supervivencia",
+    collectionModeTitle: "Modo Colección",
+    chainReactionMode: "Modo Reacción en Cadena",
+
+    // Sandbox controls
+    addParticle: "Agregar Partícula",
+    stressTest: "Prueba de Estrés (500)",
+    megaTest: "PRUEBA MEGA (2000)",
+    clearAll: "Limpiar Todo",
+    gravity: "Gravedad",
+    size: "Tamaño",
+    wind: "Viento",
+    magnet: "Imán",
+    time: "Tiempo",
+    explosion: "Explosión",
+    color: "Color",
+    screenShake: "Sacudida de Pantalla",
+    tools: "Herramientas",
+    normal: "Normal",
+    spray: "Spray",
+    particleGun: "Pistola de Partículas",
+    exploder: "Explosivo",
+    colliders: "Colisionadores",
+    none: "Ninguno",
+    platform: "Plataforma",
+    superBouncer: "Super Rebotador",
+    magnetTool: "Imán",
+    destroyer: "Destructor",
+    portal: "Portal",
+    spinner: "Girador",
+    fps: "FPS",
+    particles: "Partículas",
+    highScore: "Puntuación Máxima",
+    collidersCount: "Colisionadores",
+
+    // Particle types
+    bouncingBalls: "Pelotas Rebotadoras",
+    fallingSand: "Arena Cayendo",
+    waterDrops: "Gotas de Agua",
+    plasmaEnergy: "Energía de Plasma",
+    metalChunks: "Trozos de Metal",
+    explosives: "Explosivos",
+
+    // Game mode instructions
+    particleBudget: "Presupuesto de Partículas",
+    defendCore: "¡Usa colisionadores para defender tu núcleo!",
+    collectionInstruction:
+      "Haz clic y arrastra para generar partículas, o déjalas aparecer automáticamente",
+    reactionInstruction:
+      "Explosiones: {used}/{max} - Haz clic para crear explosiones",
+
+    // HUD
+    pause: "Pausa",
+    restart: "Reiniciar",
+    quit: "Salir",
+    score: "Puntuación",
+    lives: "Vidas",
+    time: "Tiempo",
+    wave: "Ola",
+    combo: "Combo",
+    coins: "Monedas",
+    objective: "Objetivo",
+    collected: "Recogido",
+    explosions: "Explosiones",
+    chainReactions: "Reacciones en Cadena",
+
+    // Pages
+    leaderboard: "Tabla de Clasificación",
+    sandboxHighScore: "Puntuación Máxima en Caja de Arena",
+    totalCoinsEarned: "Monedas Totales Ganadas",
+    about: "Acerca de",
+    builtWith: "Construido con React + Matter.js",
+
+    // About sections
+    gameModesSection: "Modos de Juego",
+    featuresSection: "Características",
+    particleLimit: "Límite de 50,000 partículas",
+    particleTypes: "6 tipos de partículas con física única",
+    advancedTools: "Herramientas avanzadas: Pistola de partículas, explosiones, spray",
+    interactiveColliders: "Colisionadores interactivos: Imanes, portales, destructores",
+    physicsForces: "Fuerzas físicas en tiempo real: Viento, magnetismo, gravedad",
+    coinSystem: "Sistema de monedas y progreso",
+    screenShakeEffects: "Efectos de sacudida de pantalla",
+    timeScaling: "Controles de escalado de tiempo",
+
+    // Navbar
+    home: "Inicio",
+    play: "Jugar",
+
+    // Language selector
+    language: "Idioma",
+    english: "English",
+    arabic: "العربية",
+    spanish: "Español",
+  },
 };
 
 export default translations;

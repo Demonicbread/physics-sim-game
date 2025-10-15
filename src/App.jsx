@@ -2455,11 +2455,11 @@ function App() {
               <div>
                 <h3 className="text-3xl font-bold text-green-400 mb-6 text-center">Contributors</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* FRESH PANDEMIC (Sultan Sammour) */}
+                  {/* FRESH PANDEMIC (developer) */}
                   <div className="card p-6 backdrop-blur-xl flex flex-col items-center hover:border-purple-500/50 transition-all duration-300">
-                    <img 
-                      src="https://scontent-mxp2-1.xx.fbcdn.net/v/t1.15752-9/543389657_792015706951617_577871670659730151_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=0024fc&_nc_ohc=vaR3qvrIdYsQ7kNvwHcEoTR&_nc_oc=AdnnUUntscLTpAJr5zLQZaZCOqv7b1z4t3Cl0A2m_8KObyDaNLYBbExCyxtHra3AvxwYmK7nlY1QE7yysYcfHwVd&_nc_ad=z-m&_nc_cid=0&_nc_zt=23&_nc_ht=scontent-mxp2-1.xx&oh=03_Q7cD3gHwie3elbf7EVCz5GKmz3Qk96xaZZVtnJZpR0KGGP8znw&oe=69156F3F" 
-                      alt="FRESH PANDEMIC" 
+                    <img
+                      src="/patpat.jpg"
+                      alt="FRESH PANDEMIC"
                       className="w-32 h-32 rounded-full border-4 border-purple-500/50 shadow-xl mb-4"
                       onError={(e) => {
                         e.target.onerror = null;
@@ -2468,7 +2468,7 @@ function App() {
                     />
                     <div className="text-center w-full">
                       <p className="font-bold text-2xl text-white mb-1">FRESH PANDEMIC</p>
-                      <p className="text-base text-slate-400 mb-4">Sultan Sammour</p>
+                      <p className="text-base text-slate-400 mb-4">website developer</p>
                       
                       <div className="mb-5">
                         <h4 className="text-sm font-semibold text-purple-400 mb-3">Roles</h4>
@@ -2500,7 +2500,7 @@ function App() {
                   {/* Ahmad al kresha */}
                   <div className="card p-6 backdrop-blur-xl flex flex-col items-center hover:border-cyan-500/50 transition-all duration-300">
                     <img 
-                      src="https://scontent-mxp1-1.cdninstagram.com/v/t1.15752-9/566508994_1543224150372275_2759904305777570791_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=0024fc&_nc_ohc=H10nfPi349gQ7kNvwHtveoQ&_nc_oc=AdmjHNNa-OlXktnKopHi9mJ0R_Gb0kPOf6AU47CTgNRShGRMALdC8JusWa1KoQndyLd_Eyr4mFyMJTzw7nzACsyd&_nc_zt=23&_nc_ht=scontent-mxp1-1.cdninstagram.com&oh=03_Q7cD3gEZr9FRD_dyYn5uGM2-c0vNYMZ8JUHG3lhhfPQczo76PQ&oe=69158C10" 
+                      src="/ahmad.jpg"
                       alt="Ahmad al kresha" 
                       className="w-32 h-32 rounded-full border-4 border-cyan-500/50 shadow-xl mb-4"
                       onError={(e) => {

@@ -3,7 +3,8 @@ import React from 'react';
 export default function LanguageSelector({ currentLanguage, onLanguageChange }) {
   const languages = [
     { code: 'en', name: 'English', flag: '🇺🇸' },
-    { code: 'ar', name: 'العربية', flag: '🇸🇦' }
+    { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+    { code: 'es', name: 'Español', flag: '🇪🇸' }
   ];
 
   return (
