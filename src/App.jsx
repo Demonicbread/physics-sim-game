@@ -18,6 +18,8 @@ function App() {
   const [particleSize, setParticleSize] = useState(5);
   const [color, setColor] = useState("#ff0000");
   const [highScore, setHighScore] = useState({ particles: 0, fps: 0 });
+  const [leaderboardEntries, setLeaderboardEntries] = useState([]);
+  const [showUsernamePopup, setShowUsernamePopup] = useState(false);
 
   // Game mode state
   const [gameMode, setGameMode] = useState("sandbox");
@@ -44,6 +46,7 @@ function App() {
   const [colliderLimit, setColliderLimit] = useState(10);
   const [collidersPlaced, setCollidersPlaced] = useState(0);
   const [waveCountdown, setWaveCountdown] = useState(0);
+  const [collectionSpawnMode, setCollectionSpawnMode] = useState("auto");
 
   // Advanced physics states
   const [colliderMode, setColliderMode] = useState("none");
@@ -342,7 +345,7 @@ function App() {
   }, [currentPage, gameState, timeRemaining, gameMode]);
 
   // Collection mode spawner
-  useEffect(() => {
+   useEffect(() => {
     if (
       gameMode !== "collection" ||
       gameState !== "playing" ||
@@ -1840,13 +1843,26 @@ function App() {
               </h2>
 
               <div className="max-w-7xl mx-auto space-y-6 flex-grow flex flex-col">
+              {gameMode === "challenge" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="card p-5 backdrop-blur-xl bg-slate-900/60 border-2 border-purple-500/30">
+                      <h3 className="text-sm font-bold mb-3 text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                        <span className="text-lg">🛠️</span> Tools
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => setToolMode('none')} className={`btn ${toolMode === 'none' ? 'bg-gradient-to-r from-green-600 to-green-500 shadow-lg shadow-green-500/50' : 'bg-slate-700 hover:bg-slate-600'} transition-all`}>Normal</button>
+                        <button onClick={() => setToolMode('spray')} className={`btn ${toolMode === 'spray' ? 'bg-gradient-to-r from-green-600 to-green-500 shadow-lg shadow-green-500/50' : 'bg-blue-700 hover:bg-blue-600'} transition-all`}>Spawner</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {gameMode === "sandbox" && (
                   <>
                     <div className="toolbar justify-center gap-3 backdrop-blur-xl">
                       <select
                         value={mode}
                         onChange={(e) => setMode(e.target.value)}
-                        className="px-4 py-2"
+                       className="px-4 py-2 bg-slate-700 text-white border border-slate-600 rounded-lg"
                       >
                         <option value="balls">{t("bouncingBalls")}</option>
                         <option value="sand">{t("fallingSand")}</option>
