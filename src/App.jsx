@@ -17,8 +17,6 @@ function App() {
   // UI state
   const [currentPage, setCurrentPage] = useState("home");
   const [currentLanguage, setCurrentLanguage] = useState("en");
-  const [fps, setFps] = useState(0);
-  const [particleCount, setParticleCount] = useState(0);
   const [mode, setMode] = useState("balls");
   const [gravity, setGravity] = useState(1);
   const [particleSize, setParticleSize] = useState(5);
@@ -30,13 +28,43 @@ function App() {
   // Game mode state
   const [gameMode, setGameMode] = useState("sandbox");
   const [currentLevel, setCurrentLevel] = useState(1);
-  const [score, setScore] = useState(0);
-  const [coins, setCoins] = useState(0);
   const [lives, setLives] = useState(3);
-  const [timeRemaining, setTimeRemaining] = useState(60);
   const [objective, setObjective] = useState(null);
   const [gameState, setGameState] = useState("playing");
   const [wave, setWave] = useState(1);
+  const [maxExplosions, setMaxExplosions] = useState(5);
+  const [particleBudget, setParticleBudget] = useState(Infinity);
+  const [colliderLimit, setColliderLimit] = useState(10);
+  const [collectionSpawnMode, setCollectionSpawnMode] = useState("auto");
+
+  // Rapidly changing physics state moved to refs to prevent excessive re-renders
+  const fpsRef = useRef(0);
+  const particleCountRef = useRef(0);
+  const scoreRef = useRef(0);
+  const coinsRef = useRef(0);
+  const timeRemainingRef = useRef(60);
+  const particlesSpawnedRef = useRef(0);
+  const collidersPlacedRef = useRef(0);
+  const waveCountdownRef = useRef(0);
+  const comboRef = useRef(0);
+  const collectedParticlesRef = useRef({
+    red: 0,
+    blue: 0,
+    green: 0,
+    yellow: 0,
+  });
+  const chainReactionsRef = useRef(0);
+  const explosionsUsedRef = useRef(0);
+
+  // UI state for display (updated throttled)
+  const [fps, setFps] = useState(0);
+  const [particleCount, setParticleCount] = useState(0);
+  const [score, setScore] = useState(0);
+  const [coins, setCoins] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(60);
+  const [particlesSpawned, setParticlesSpawned] = useState(0);
+  const [collidersPlaced, setCollidersPlaced] = useState(0);
+  const [waveCountdown, setWaveCountdown] = useState(0);
   const [combo, setCombo] = useState(0);
   const [collectedParticles, setCollectedParticles] = useState({
     red: 0,
@@ -46,13 +74,6 @@ function App() {
   });
   const [chainReactions, setChainReactions] = useState(0);
   const [explosionsUsed, setExplosionsUsed] = useState(0);
-  const [maxExplosions, setMaxExplosions] = useState(5);
-  const [particleBudget, setParticleBudget] = useState(Infinity);
-  const [particlesSpawned, setParticlesSpawned] = useState(0);
-  const [colliderLimit, setColliderLimit] = useState(10);
-  const [collidersPlaced, setCollidersPlaced] = useState(0);
-  const [waveCountdown, setWaveCountdown] = useState(0);
-  const [collectionSpawnMode, setCollectionSpawnMode] = useState("auto");
 
   // Advanced physics states
   const [colliderMode, setColliderMode] = useState("none");

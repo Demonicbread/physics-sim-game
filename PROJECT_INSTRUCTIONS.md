@@ -13,7 +13,7 @@ An extreme physics simulation game built with React, Vite, Matter.js, and Tailwi
 ## Key Features
 - **50,000 particle limit** (up from original 10k)
 - **6 particle types**: Balls, Sand, Water, Plasma, Metal, Explosives
-- **Advanced tools**: Particle Gun, Spray, Explosion system
+- **tools**: Particle Gun, Spray, Explosion system
 - **Interactive colliders**: Platforms, Bouncers, Magnets, Destroyers, Portals (visual only), Spinners
 - **Physics forces**: Wind, Magnetism, Gravity control, Time scaling
 - **Performance**: Screen shake effects, FPS monitoring, high score tracking

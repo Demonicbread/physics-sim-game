@@ -5,8 +5,8 @@ const translations = {
     subtitle: "Relaxing Physics Sandbox",
     description:
       "Unwind with a calming, creative particle sandbox. Build, play, and watch soothing physics unfold — with optional mini‑modes for extra challenges.",
-    playNow: "PLAY NOW",
-    noInstall: "No installation required • Works in any modern browser",
+    playNow: "PLAY",
+    noInstall: "No installation required • Works in any browser",
     gameModes: "Game Modes",
     totalCoins: "Total Coins",
     challengeLevels: "Challenge Levels",
@@ -16,25 +16,25 @@ const translations = {
     sandboxDescription: "Relax, create, and play with soothing physics",
     challengeMode: "Challenge Mode",
     challengeDescription:
-      "Complete objectives across 20 levels (work in progress, may not work)",
+      "Complete objectives across 20 levels ",
     survivalMode: "Survival Mode",
     survivalDescription:
-      "Defend your core from endless waves (work in progress, may not work)",
+      "Defend your core from endless waves ",
     collectionMode: "Collection Mode",
     collectionDescription:
-      "Sort particles into matching zones (work in progress, may not work)",
+      "Sort particles into matching zones ",
     reactionMode: "Chain Reaction",
     reactionDescription:
-      "Create explosive chain reactions (work in progress, may not work)",
-    fusionMode: "Fusion Mode",
+      "Create explosive chain reactions ",
+    fusionMode: "WIP-Fusion Mode",
     fusionDescription:
       "Combine particle types into new materials (prototype)",
-    chaosMode: "Chaos Mode",
+    chaosMode: "WIP-Chaos Mode",
     chaosDescription: "Randomize physics for chaotic fun (prototype)",
     constructionMode: "Construction Mode",
     constructionDescription:
       "Build mechanisms with connectors, springs and motors (prototype)",
-    simulationLab: "Simulation Lab",
+    simulationLab: "WIP-Simulation Lab",
     labDescription: "Preset scientific scenarios (prototype)",
 
     // Game mode selector
