@@ -105,6 +105,12 @@ export default function GameHUD({
           <div className="flex items-center gap-3 pt-2 border-t border-white/10">
             <span className="text-lg font-bold text-green-400">💰 {coins}</span>
             <span className="text-xs text-slate-400 uppercase">Coins</span>
+            <button
+              onClick={() => onInjectEnergy && onInjectEnergy()}
+              className="ml-4 btn btn-sm btn-accent pointer-events-auto"
+            >
+              ⚡ Inject
+            </button>
           </div>
         </div>
 

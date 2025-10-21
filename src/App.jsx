@@ -9,6 +9,10 @@ import translations from "./translations";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInstagram } from '@fortawesome/free-brands-svg-icons';
 
+// Resolve public assets using Vite's import.meta.url so base paths work in dev and production
+const patpatImg = new URL('/patpat.jpg', import.meta.url).href;
+const ahmadImg = new URL('/ahmad.jpg', import.meta.url).href;
+
 function App() {
   // UI state
   const [currentPage, setCurrentPage] = useState("home");
@@ -62,6 +66,9 @@ function App() {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [achievements, setAchievements] = useState([]);
   const [shopOpen, setShopOpen] = useState(false);
+  const [unlockedParticles, setUnlockedParticles] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('unlockedParticles') || '[]'); } catch(e){ return []; }
+  });
   const [contraptions, setContraptions] = useState(() => {
     try {
       const raw = localStorage.getItem('contraptions');
@@ -158,6 +165,28 @@ function App() {
     if (savedLanguage) setCurrentLanguage(savedLanguage);
   }, []);
 
+  // worker for neighbor forces
+  const neighborWorkerRef = useRef(null);
+  useEffect(() => {
+    try {
+      neighborWorkerRef.current = new Worker(new URL('./workers/neighborWorker.js', import.meta.url));
+      neighborWorkerRef.current.onmessage = (e) => {
+        const data = e.data;
+        if (!data || !data.forces) return;
+        data.forces.forEach((f) => {
+          const b = particlesRef.current.find(p => p.id === f.id);
+          if (!b) return;
+          Matter.Body.applyForce(b, b.position, { x: f.fx, y: f.fy });
+        });
+      };
+    } catch (e) {
+      neighborWorkerRef.current = null;
+    }
+    return () => {
+      if (neighborWorkerRef.current) neighborWorkerRef.current.terminate();
+    };
+  }, []);
+
   const createParticle = useCallback(
     (x, y, customProps = {}) => {
       if (!engineRef.current || particleCount >= 50000) return null;
@@ -246,6 +275,7 @@ function App() {
       if (body) {
         body.isParticle = true;
         // Attach prototype systems
+        body.energy = customProps.energy || 0;
         body.temperature = customProps.temperature || 20; // Celsius-ish
         body.charge = customProps.charge || 0; // -1,0,1 basic
         body.pressure = 0;
@@ -272,6 +302,33 @@ function App() {
       gameMode,
     ]
   );
+
+  // Achievements watcher
+  useEffect(() => {
+    const unlocked = [];
+    if (particlesSpawned > 1000) unlocked.push({ id: 'spawn_1000', name: 'Spawn 1k', reward: 50 });
+    if (explosionsUsed > 10) unlocked.push({ id: 'expl_10', name: 'Use 10 explosions', reward: 25 });
+    // Grant any new achievements
+    unlocked.forEach((a) => {
+      if (!achievements.find(x => x.id === a.id)) {
+        setAchievements(prev => [...prev, a]);
+        setCoins(c => { const n = c + a.reward; localStorage.setItem('totalCoins', n.toString()); return n; });
+      }
+    });
+  }, [particlesSpawned, explosionsUsed]);
+
+  const shopItems = [
+    { id: 'plasma', name: 'Plasma', cost: 100 },
+    { id: 'metal', name: 'Metal', cost: 150 },
+  ];
+  const buyItem = (item) => {
+    if (coins >= item.cost && !unlockedParticles.includes(item.id)) {
+      setCoins(c => { const n = c - item.cost; localStorage.setItem('totalCoins', n.toString()); return n; });
+      const next = [...unlockedParticles, item.id];
+      setUnlockedParticles(next);
+      localStorage.setItem('unlockedParticles', JSON.stringify(next));
+    }
+  };
 
   // Spatial hash helpers
   const hashKey = (x, y) => {
@@ -974,6 +1031,50 @@ function App() {
         ctx.stroke();
       });
       ctx.restore();
+
+      // Heatmap overlay
+      if (showHeatmap) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        particlesRef.current.forEach((p) => {
+          const temp = p.temperature || 20;
+          const tNorm = Math.max(0, Math.min(1, (temp - 10) / 40)); // map to 0..1
+          const radius = 20 + (tNorm * 40);
+          const grd = ctx.createRadialGradient(p.position.x, p.position.y, 0, p.position.x, p.position.y, radius);
+          const color = `hsl(${(1 - tNorm) * 240}, 100%, ${50 - tNorm * 20}%)`;
+          grd.addColorStop(0, color);
+          grd.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = grd;
+          ctx.beginPath();
+          ctx.arc(p.position.x, p.position.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      }
+
+      // Energy bars overlay (fusion polish)
+      if (enableFusion) {
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        particlesRef.current.forEach((p) => {
+          const energy = Math.max(0, Math.min(1, (p.energy || 0) / 5)); // normalize (assume 5 is a reasonable cap)
+          if (energy <= 0) return;
+          const barW = 28;
+          const barH = 4;
+          const px = p.position.x - barW / 2;
+          const py = p.position.y - (p.circleRadius || (p.bounds.max.y - p.bounds.min.y) / 2) - 12;
+          // background
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(px - 1, py - 1, barW + 2, barH + 2);
+          // energy fill
+          const grad = ctx.createLinearGradient(px, py, px + barW, py);
+          grad.addColorStop(0, '#00ffdd');
+          grad.addColorStop(1, '#00aaff');
+          ctx.fillStyle = grad;
+          ctx.fillRect(px, py, barW * energy, barH);
+        });
+        ctx.restore();
+      }
     });
 
     particlesRef.current = [];
@@ -1102,38 +1203,7 @@ function App() {
         y: collider.position.y,
       });
 
-      // Rebuild spatial hash every 6 frames (tunable)
-      if (frameCount % 6 === 0) rebuildSpatialHash();
-
-      // Temperature/pressure/charge simulation using spatial hash
-      const parts = particlesRef.current;
-      for (let i = 0; i < parts.length; i++) {
-        const p = parts[i];
-        if (!p) continue;
-        // Temperature: hotter particles slowly rise
-        if (p.temperature && Math.abs(p.temperature - 20) > 0.1) {
-          const tForce = (p.temperature - 20) * -0.00002;
-          Matter.Body.applyForce(p, p.position, { x: 0, y: tForce });
-        }
-        // Neighbors via spatial hash
-        const neighbors = nearbyParticles(p, 60);
-        if (neighbors.length > 3) {
-          const f = (neighbors.length - 3) * 0.000002;
-          Matter.Body.applyForce(p, p.position, { x: (Math.random() - 0.5) * f, y: (Math.random() - 0.5) * f });
-        }
-        if (p.charge) {
-          for (const q of neighbors) {
-            if (q === p || !q.charge) continue;
-            const dx = q.position.x - p.position.x;
-            const dy = q.position.y - p.position.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
-            if (dist < 120) {
-              const forceMag = (p.charge * q.charge) * 0.00002 / (dist * dist);
-              Matter.Body.applyForce(p, p.position, { x: -dx * forceMag, y: -dy * forceMag });
-            }
-          }
-        }
-      }
+      // (Neighbor forces & spatial hash will be handled centrally below)
       // Update magnet position if this is a magnet collider
       if (collider.magnetIndex !== undefined) {
         magnetsRef.current[collider.magnetIndex].position = { x: newX, y: collider.position.y };
@@ -1148,6 +1218,44 @@ function App() {
           }
         }
       });
+
+      // Rebuild spatial hash periodically
+      if (frameCount % 6 === 0) rebuildSpatialHash();
+
+      // Offload neighbor force computation to worker if available
+      if (neighborWorkerRef.current && particlesRef.current.length > 0) {
+        // snapshot minimal particle data
+        const snapshot = particlesRef.current.map((p) => ({ id: p.id, x: p.position.x, y: p.position.y, charge: p.charge || 0, temperature: p.temperature || 20 }));
+        neighborWorkerRef.current.postMessage({ particles: snapshot, cellSize: hashCellSize });
+      } else {
+        // local fallback (cheap): apply temperature & simple neighbor jitter using spatial hash
+        const parts = particlesRef.current;
+        for (let i = 0; i < parts.length; i++) {
+          const p = parts[i];
+          if (!p) continue;
+          if (p.temperature && Math.abs(p.temperature - 20) > 0.1) {
+            const tForce = (p.temperature - 20) * -0.00002;
+            Matter.Body.applyForce(p, p.position, { x: 0, y: tForce });
+          }
+          const neighbors = nearbyParticles(p, 60);
+          if (neighbors.length > 3) {
+            const f = (neighbors.length - 3) * 0.000002;
+            Matter.Body.applyForce(p, p.position, { x: (Math.random() - 0.5) * f, y: (Math.random() - 0.5) * f });
+          }
+          if (p.charge) {
+            for (const q of neighbors) {
+              if (q === p || !q.charge) continue;
+              const dx = q.position.x - p.position.x;
+              const dy = q.position.y - p.position.y;
+              const dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+              if (dist < 120) {
+                const forceMag = (p.charge * q.charge) * 0.00002 / (dist * dist);
+                Matter.Body.applyForce(p, p.position, { x: -dx * forceMag, y: -dy * forceMag });
+              }
+            }
+          }
+        }
+      }
 
       // Update trails
       particlesRef.current.forEach((p) => {
@@ -1437,8 +1545,16 @@ function App() {
       const recipe = FUSION_RECIPES[keyA];
       if (!recipe) return false;
 
-      // Energy/cooldown: simple random chance to fuse
-      if (Math.random() > 0.15) return false;
+  // Energy/cooldown: require enough 'energy' stored on particles
+  const energyA = a.energy || 0;
+  const energyB = b.energy || 0;
+  const cost = recipeCostMap[keyA] || 1;
+  if (energyA + energyB < cost) return false;
+  // Consume energy proportionally
+  const takeA = Math.min(energyA, cost * (energyA / (energyA + energyB)));
+  const takeB = cost - takeA;
+  a.energy = Math.max(0, energyA - takeA);
+  b.energy = Math.max(0, energyB - takeB);
 
       // Create fused particle at midpoint
       const x = (a.position.x + b.position.x) / 2;
@@ -1460,12 +1576,17 @@ function App() {
       });
       if (p) {
         p.particleType = result.type;
+        p.energy = 0; // newly created fused particle has no spare energy
         // small glow/explosion
         explosionsRef.current.push({ x, y, power: 12, radius: 30, life: 0.8 });
         return true;
       }
       return false;
     };
+
+  // Fusion recipes and energy costs (editable via UI)
+  const [fusionRecipes, setFusionRecipes] = useState(() => ({ ...FUSION_RECIPES }));
+  const recipeCostMap = { 'sand+water': 1, 'plasma+metal': 2 };
 
   const createCollider = useCallback(
     (x, y, type) => {
@@ -1680,7 +1801,7 @@ function App() {
     for (let i = 0; i <= segments; i++) {
       const x = x1 + dx * i;
       const y = y1 + dy * i;
-      const node = Matter.Bodies.circle(x, y, 6, { density: 0.001, frictionAir: 0.02 });
+      const node = getNode(x, y);
       Matter.World.add(world, node);
       particlesRef.current.push(node);
       if (prev) {
@@ -1693,6 +1814,22 @@ function App() {
     setParticleCount(particlesRef.current.length);
   };
 
+  // Simple pool for small circle nodes
+  const nodePoolRef = useRef([]);
+  const getNode = (x, y) => {
+    let n = nodePoolRef.current.pop();
+    if (n) {
+      Matter.Body.setPosition(n, { x, y });
+      n.isSleeping = false;
+      return n;
+    }
+    return Matter.Bodies.circle(x, y, 6, { density: 0.001, frictionAir: 0.02 });
+  };
+  const releaseNode = (node) => {
+    try { Matter.World.remove(engineRef.current.world, node); } catch(e){}
+    nodePoolRef.current.push(node);
+  };
+
   // Tesla coil collider (emits electric arcs) - simple visual sensor and occasional sparks
   const createTeslaCoil = (x, y) => {
     if (!engineRef.current) return;
@@ -1700,6 +1837,45 @@ function App() {
     const coil = Matter.Bodies.circle(x, y, 28, { isStatic: true, isSensor: true, render: { fillStyle: '#AA00FF' }, isTesla: true });
     Matter.World.add(world, coil);
     collidersRef.current.push(coil);
+  };
+
+  // Construction helpers
+  const createHinge = (x, y) => {
+    if (!engineRef.current) return;
+    const world = engineRef.current.world;
+    const plank = Matter.Bodies.rectangle(x, y, 200, 20, { density: 0.002, friction: 0.05 });
+    const pivot = { x, y };
+    const con = Matter.Constraint.create({ pointA: pivot, bodyB: plank, length: 0, stiffness: 1 });
+    Matter.World.add(world, [plank, con]);
+    collidersRef.current.push(plank);
+    constraintsRef.current.push(con);
+    return { plank, con };
+  };
+
+  const createSpring = (x1, y1, x2, y2, stiffness = 0.5) => {
+    if (!engineRef.current) return;
+    const world = engineRef.current.world;
+    const a = Matter.Bodies.circle(x1, y1, 8, { density: 0.001 });
+    const b = Matter.Bodies.circle(x2, y2, 8, { density: 0.001 });
+    const con = Matter.Constraint.create({ bodyA: a, bodyB: b, length: Math.hypot(x2-x1, y2-y1), stiffness });
+    Matter.World.add(world, [a,b,con]);
+    particlesRef.current.push(a,b);
+    constraintsRef.current.push(con);
+    setParticleCount(particlesRef.current.length);
+    return { a,b,con };
+  };
+
+  const createMotor = (x, y, speed = 0.2) => {
+    if (!engineRef.current) return;
+    const world = engineRef.current.world;
+    const wheel = Matter.Bodies.circle(x, y, 30, { density: 0.002 });
+    const con = Matter.Constraint.create({ pointA: {x,y}, bodyB: wheel, length: 0, stiffness: 1 });
+    wheel.isSpinner = true;
+    Matter.World.add(world, [wheel, con]);
+    collidersRef.current.push(wheel);
+    constraintsRef.current.push(con);
+    // motor effect: set angular velocity periodically in physics loop (spinner support exists already)
+    return { wheel, con };
   };
 
   const handleMouseDown = useCallback(
@@ -1853,7 +2029,15 @@ function App() {
       ...particlesRef.current,
       ...collidersRef.current,
       ...constraintsRef.current,
-    ].forEach((b) => Matter.World.remove(world, b));
+    ].forEach((b) => {
+      // Reuse small circle nodes
+      if (b.circleRadius && b.circleRadius <= 8) {
+        try { Matter.World.remove(world, b); } catch(e){}
+        nodePoolRef.current.push(b);
+      } else {
+        try { Matter.World.remove(world, b); } catch(e){}
+      }
+    });
     particlesRef.current = [];
     collidersRef.current = [];
     constraintsRef.current = [];
@@ -2174,7 +2358,62 @@ function App() {
                       <button onClick={() => createRope(200,100,400,200)} className="btn">{t('ropeTool')}</button>
                       <button onClick={() => createTeslaCoil(300,150)} className="btn">{t('teslaCoil')}</button>
                       <button onClick={() => setShowHeatmap(s => !s)} className="btn">{t('heatmap')}</button>
+                      <button onClick={() => setShopOpen(s => !s)} className="btn">{t('shop')}</button>
+                      <button onClick={() => {/* open achievements panel - simple alert for now */ alert('Achievements:\n' + achievements.map(a => a.name).join('\n')) }} className="btn">{t('achievements')}</button>
+                      <button onClick={() => createHinge(500,150)} className="btn">Hinge</button>
+                      <button onClick={() => createSpring(600,120,660,160)} className="btn">Spring</button>
+                      <button onClick={() => createMotor(700,140)} className="btn">Motor</button>
                     </div>
+
+                    {/* Fusion panel */}
+                    {enableFusion && (
+                      <div className="card p-4 backdrop-blur-xl mt-4">
+                        <h4 className="font-bold mb-2">Fusion Recipes</h4>
+                        <div className="grid grid-cols-1 gap-2">
+                          {Object.keys(fusionRecipes).map((k) => (
+                            <div key={k} className="flex items-center justify-between p-1 bg-slate-800 rounded">
+                              <div className="text-sm">{k} → {fusionRecipes[k]().type}</div>
+                              <div className="text-xs text-slate-400">Cost: {recipeCostMap[k] || 1}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                          <input id="r-a" placeholder="typeA" className="p-2 bg-slate-700 rounded" />
+                          <input id="r-b" placeholder="typeB" className="p-2 bg-slate-700 rounded" />
+                          <input id="r-color" placeholder="#hex" className="p-2 bg-slate-700 rounded" />
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <button className="btn" onClick={() => {
+                            const a = document.getElementById('r-a').value.trim();
+                            const b = document.getElementById('r-b').value.trim();
+                            const color = document.getElementById('r-color').value.trim() || '#ffffff';
+                            if (!a || !b) return;
+                            const key = [a,b].map(s=>s.toLowerCase()).sort().join('+');
+                            const newRecipes = {...fusionRecipes, [key]: ()=>({type: `${a}_${b}`, color})};
+                            setFusionRecipes(newRecipes);
+                            recipeCostMap[key] = 1;
+                          }}>Add Recipe</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Shop panel */}
+                    {shopOpen && (
+                      <div className="card p-4 backdrop-blur-xl mt-4">
+                        <h4 className="font-bold mb-2">Shop</h4>
+                        <div className="grid grid-cols-1 gap-2">
+                          {shopItems.map((it) => (
+                            <div key={it.id} className="flex items-center justify-between p-2 bg-slate-800 rounded">
+                              <div>{it.name}</div>
+                              <div className="flex gap-2">
+                                <div className="text-slate-400">{it.cost} 💰</div>
+                                <button className="btn" onClick={() => buyItem(it)} disabled={unlockedParticles.includes(it.id)}>{unlockedParticles.includes(it.id) ? 'Owned' : 'Buy'}</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                       <div className="control-group backdrop-blur-xl">
@@ -2726,7 +2965,7 @@ function App() {
                   {/* FRESH PANDEMIC (developer) */}
                   <div className="card p-6 backdrop-blur-xl flex flex-col items-center hover:border-purple-500/50 transition-all duration-300">
                     <img
-                      src="/patpat.jpg"
+                      src={patpatImg}
                       alt="FRESH PANDEMIC"
                       className="w-32 h-32 rounded-full border-4 border-purple-500/50 shadow-xl mb-4"
                       onError={(e) => {
@@ -2768,7 +3007,7 @@ function App() {
                   {/* Ahmad al kresha */}
                   <div className="card p-6 backdrop-blur-xl flex flex-col items-center hover:border-cyan-500/50 transition-all duration-300">
                     <img 
-                      src="/ahmad.jpg"
+                      src={ahmadImg}
                       alt="Ahmad al kresha" 
                       className="w-32 h-32 rounded-full border-4 border-cyan-500/50 shadow-xl mb-4"
                       onError={(e) => {
