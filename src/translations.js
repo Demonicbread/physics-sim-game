@@ -141,6 +141,9 @@ const translations = {
   slowMo: "Slow-Mo",
   teslaCoil: "Tesla Coil",
   ropeTool: "Rope Tool",
+  hinge: "Hinge",
+  spring: "Spring",
+  motor: "Motor",
   filters: "Filters",
   exportClip: "Export Clip",
 
@@ -290,6 +293,9 @@ const translations = {
   slowMo: "تباطؤ الحركة",
   teslaCoil: "ملف تسلا",
   ropeTool: "أداة الحبل",
+  hinge: "مفصل",
+  spring: "زنبرك",
+  motor: "محرك",
   filters: "المرشحات",
   exportClip: "تصدير مقطع",
 
@@ -443,6 +449,9 @@ const translations = {
   slowMo: "Cámara Lenta",
   teslaCoil: "Bobina Tesla",
   ropeTool: "Herramienta Cuerda",
+  hinge: "Bisagra",
+  spring: "Resorte",
+  motor: "Motor",
   filters: "Filtros",
   exportClip: "Exportar Clip",
 
